@@ -311,16 +311,21 @@ So :keyword:`derived from literal` is set as code and
 :aside-note:`derived from emphasis` is italic, while both still carry their own
 class for a stylesheet to find.
 
-``default-role`` changes what bare single backticks mean. Normally `this` is a
-title reference; between the two directives below it is a literal:
+``default-role`` changes what bare single backticks mean. By default they are a
+*title reference* - the title of a work, which is the only thing reST assumes
+you write often enough to deserve the shortest markup: the idea comes from
+`Design Patterns`, chapter 3. It renders as ``<cite>``, so it looks like
+emphasis but is not it.
+
+Between the two directives below, the same backticks are a literal instead:
 
 .. default-role:: literal
 
-Here `single backticks` produce code instead.
+Here `single backticks` produce code.
 
 .. default-role::
 
-And here `they mean a title reference again`.
+And here `The Mythical Man-Month` is a cited title again.
 
 ``target-notes`` turns external links into numbered footnotes, so a printed
 copy still carries its URLs - note the ``[1]`` and ``[2]`` appended to the two
