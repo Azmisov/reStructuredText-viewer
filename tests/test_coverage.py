@@ -84,6 +84,55 @@ Text with |sub|.
 
 .. [#f] A footnote.
 .. [CIT] A citation.
+
+.. compound::
+
+   Compound first.
+
+   Compound second.
+
+.. topic:: A topic
+
+   Topic body.
+
+.. sidebar:: A sidebar
+
+   Sidebar body.
+
+.. rubric:: A rubric
+
+.. epigraph::
+
+   An epigraph.
+
+.. parsed-literal::
+
+   parsed *literal*
+
+.. list-table:: A list table
+   :header-rows: 1
+
+   * - a
+     - b
+   * - 1
+     - 2
+
+.. csv-table:: A csv table
+   :header: "x", "y"
+
+   1, 2
+
+.. container:: custom
+
+   Contained.
+
+.. admonition:: Custom title
+
+   Custom admonition body.
+
+.. header:: A page header
+
+.. footer:: A page footer
 """
 
 

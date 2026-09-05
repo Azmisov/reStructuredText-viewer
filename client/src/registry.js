@@ -41,6 +41,14 @@ export const SIMPLE = {
   line: 'div',
   inline: 'span',
   container: 'div',
+  compound: 'div',
+  // `.. header::` / `.. footer::` are page decoration meant for print output.
+  // docutils puts both in a `decoration` node at the *top* of the doctree, so
+  // a footer renders above the body here rather than below it. Showing the
+  // content in the wrong place beats dropping it silently; hoisting it would
+  // mean the renderer reaching outside its own subtree.
+  header: 'div',
+  footer: 'div',
   topic: 'aside',
   sidebar: 'aside',
   rubric: 'p',
@@ -84,7 +92,9 @@ export const COMPONENTS = {
 };
 
 /** Rendered as their children, with no wrapper element of their own. */
-export const TRANSPARENT = new Set(['document', 'tgroup', 'description', 'option_group']);
+export const TRANSPARENT = new Set([
+  'document', 'tgroup', 'description', 'option_group', 'decoration'
+]);
 
 /** Present in the doctree but with nothing to show. */
 export const HIDDEN = new Set([
