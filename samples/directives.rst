@@ -311,12 +311,6 @@ So :keyword:`derived from literal` is set as code and
 :aside-note:`derived from emphasis` is italic, while both still carry their own
 class for a stylesheet to find.
 
-.. raw:: html
-
-   <style>
-   cite { color: var(--muted); font-style: italic; }
-   </style>
-
 ``default-role`` changes what bare single backticks mean. By default they are a
 *title reference* - the title of a work, which is the only thing reST assumes
 you write often enough to deserve the shortest markup: the idea comes from
