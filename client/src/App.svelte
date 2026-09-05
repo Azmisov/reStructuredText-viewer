@@ -190,7 +190,7 @@
 
 <div class="layout" class:with-outline={showOutline}>
   {#if showOutline}
-    <Outline entries={outline} active={reading.active} />
+    <Outline entries={outline} active={reading.active} visible={reading.visible} />
   {/if}
   <main>
     {#if doc.error}

@@ -1,7 +1,7 @@
 <script>
   import ReadingMark from './ReadingMark.svelte';
 
-  let { entries = [], active = null } = $props();
+  let { entries = [], active = null, visible = new Set() } = $props();
 </script>
 
 {#if entries.length}
@@ -9,7 +9,13 @@
     <ul>
       {#each entries as entry (entry.id)}
         <li style:--depth={entry.depth}>
-          <a href="#{entry.id}" class:active={active === entry.id}>
+          <!-- Every section on screen is marked; only the one being read
+               carries the eye. -->
+          <a
+            href="#{entry.id}"
+            class:active={active === entry.id}
+            class:visible={visible.has(entry.id) && active !== entry.id}
+          >
             <span class="mark">
               {#if active === entry.id}<ReadingMark />{/if}
             </span>
@@ -51,6 +57,13 @@
   .mark { width: 1em; flex: none; display: flex; justify-content: center; }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a:hover { color: var(--fg); background: var(--code-bg); }
+  /* On screen but not the one being read: brought up to full text colour with
+     a faint rule, so the group reads as a range without competing with the
+     active entry. */
+  a.visible {
+    color: var(--fg);
+    border-left-color: var(--border);
+  }
   a.active {
     color: var(--link);
     border-left-color: var(--link);
