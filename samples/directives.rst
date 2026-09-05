@@ -250,14 +250,40 @@ Roles mark up a run of text: :emphasis:`emphasis`, :strong:`strong`,
 :literal:`literal`, :subscript:`sub` and :superscript:`sup`,
 :title-reference:`a title`, and :abbreviation:`abbr`.
 
-``raw`` passes content straight through to one output format. **This viewer
-drops it**: the renderer builds a component tree from an AST, and injecting
-arbitrary markup would mean handing a document authority over the page it is
-displayed in. The directive parses without error, and nothing appears:
+``raw`` passes content straight through to one output format. This viewer
+**drops raw markup** - rendering it would hand a document authority over the
+page displaying it - but **honours a stylesheet**, which is the part authors
+actually want: somewhere to define the classes that ``class`` and custom roles
+attach.
 
 .. raw:: html
 
-   <p>If you can read this, raw HTML is no longer being dropped.</p>
+   <style>
+   .badge {
+     background: color-mix(in srgb, var(--link) 18%, transparent);
+     border: 1px solid var(--link);
+     border-radius: 999px;
+     padding: 0.05em 0.55em;
+     font-size: 0.85em;
+   }
+   </style>
+
+.. role:: badge
+
+That stylesheet defines ``.badge``, and a custom role applies it: :badge:`like
+this`. The rules are scoped to the document body, so a stylesheet can restyle
+its own content but cannot reach the toolbar or the outline, and ``@import``
+is stripped.
+
+Raw markup in any format is still discarded, so nothing appears below:
+
+.. raw:: html
+
+   <p>If you can read this, raw markup is no longer being dropped.</p>
+
+.. raw:: latex
+
+   \emph{Only the HTML writer would see this anyway.}
 
 Structure
 =========

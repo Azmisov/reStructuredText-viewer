@@ -229,16 +229,37 @@ Three cases where the obvious CSS target does not exist:
   indistinguishable without one. `TYPE_CLASS` supplies a hook for the few
   types CSS targets; tagging every paragraph would be DOM weight for nothing.
 
-## `raw` is parsed and then dropped
+## `raw` gives up its markup but keeps its stylesheet
 
-`.. raw:: html` is the one directive deliberately not rendered. The client
-builds a component tree from an AST; honouring `raw` would mean `{@html}` on
-document-supplied markup, which hands any document the viewer opens authority
-over the page it is displayed in - script, styles, and anything else. A preview
-of someone else's file should not be able to do that.
+Rendering raw markup would mean `{@html}` on document-supplied content, which
+hands any file you open authority over the page displaying it - scripts, event
+handlers, injected UI. That stays refused.
 
-It stays in `HIDDEN` rather than being rejected at parse time, so a document
-using it still renders everywhere else.
+A stylesheet is a narrower thing, and it is the part authors actually want:
+somewhere to define the classes that `.. class::` and custom roles attach,
+since both otherwise produce a class that nothing styles. CSS cannot execute.
+
+Three things keep it narrow:
+
+- Only the contents of style elements are read, by pattern, and applied by
+  assigning `textContent` on an element built in JavaScript. Nothing parses
+  document content as HTML, so there is no path from raw markup to an element -
+  a smuggled closing tag is inert.
+- The rules are wrapped in `main { … }` with native CSS nesting, so a document
+  can restyle its own body and cannot touch the toolbar, the outline, the
+  settings panel or the file dialog. A document that hides the chrome you would
+  use to close it is not one you can escape.
+- `@import` is stripped, so a document stylesheet cannot pull in a remote one.
+
+Verified against a document that tries all of it: `header.bar { display: none }`,
+`body { background: red }`, an `@import`, an `<img onerror>` and a stray
+paragraph. The badge and an `@media` rule applied; the toolbar, outline and
+page background were untouched; the markup and the handler never reached the
+DOM.
+
+What remains possible is what a document can do to *itself* - unreadable
+colours, hidden paragraphs. That is the author's prerogative, and reloading
+without the directive undoes it.
 
 ## Images are served through a separate resolver
 

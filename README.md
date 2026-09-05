@@ -41,6 +41,11 @@ The gear icon opens a panel persisted to `localStorage`: light/dark/system,
 spacing, font size, content width and position, code line numbers, line
 wrapping, and separate light and dark syntax themes (all 65 Shiki themes).
 
+A `.. raw:: html` block's **stylesheet** is honoured — somewhere to define the
+classes that `.. class::` and custom roles attach — while raw markup stays
+dropped. The rules are scoped to the document body, so a stylesheet cannot
+reach the viewer's own chrome.
+
 ### Custom blocks
 
 Directives are declared in `rstview.config.json`, not in code, and map to Svelte

@@ -16,6 +16,7 @@ import MathBlock from './nodes/MathBlock.svelte';
 import Document from './nodes/Document.svelte';
 import Table from './nodes/Table.svelte';
 import Aside from './nodes/Aside.svelte';
+import Raw from './nodes/Raw.svelte';
 import Unknown from './nodes/Unknown.svelte';
 
 /** docutils types that map cleanly onto a single HTML element. */
@@ -75,6 +76,7 @@ export const COMPONENTS = {
   table: Table,
   topic: Aside,
   sidebar: Aside,
+  raw: Raw,
   title: Title,
   subtitle: Title,
   reference: Reference,
@@ -114,8 +116,7 @@ export const HIDDEN = new Set([
   'substitution_definition',
   'colspec',
   'target',
-  'meta',
-  'raw'
+  'meta'
 ]);
 
 /** Types that need a class hook for styling but get none from docutils.
