@@ -47,6 +47,23 @@
     text-underline-offset: 0.15em;
   }
 
+  /* A jump within this page is not a departure, and a document with many of
+     them - a contents list, a table of cross-references - turns into a wall of
+     rules. Colour and the # marker still identify it; the underline comes back
+     on hover so the affordance is not lost. */
+  a.anchor {
+    text-decoration: none;
+  }
+  a.anchor:hover {
+    text-decoration: underline;
+  }
+
+  /* Inside a table of contents every entry is an anchor, so the marker stops
+     distinguishing anything and just adds noise to every line. */
+  :global(.contents) a.anchor::after {
+    content: none;
+  }
+
   /* inline-block stops the parent's underline from running through the marker,
      which text-decoration would otherwise propagate into it. */
   a::after {

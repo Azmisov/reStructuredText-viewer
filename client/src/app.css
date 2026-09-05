@@ -337,3 +337,21 @@ blockquote.pull-quote cite {
 .rst-line:empty::before {
   content: "\00a0";
 }
+
+
+/* --- Boxes beside a float ----------------------------------------------- */
+/* A float shortens the *line boxes* beside it, but a block's own border box
+   still runs underneath. Next to a floated sidebar that puts a bordered panel
+   - an admonition, a quote, a code block - directly behind it, with the two
+   borders landing on the same pixel and appearing to abut.
+   `flow-root` makes each of these a block formatting context, and a BFC root
+   does not overlap a float's margin box: it sits beside it instead, honouring
+   the sidebar's own margins as a real gap. */
+blockquote,
+figure,
+pre,
+.shiki,
+.rst-literal-block,
+.rst-compound {
+  display: flow-root;
+}

@@ -148,6 +148,26 @@ The table caption is styled as a banner row above the column headers - same
 fill and padding as `th`, no bottom border - because a caption floating above
 a bordered table reads as a stray paragraph rather than as part of it.
 
+## Bordered blocks are block formatting contexts
+
+A float shortens the *line boxes* beside it, but a neighbouring block's own
+border box still runs underneath. Next to the floated `.. sidebar::` that put
+a bordered panel - an admonition, an epigraph, a code block - directly behind
+it, with both borders landing on the same pixel and appearing to abut.
+
+`display: flow-root` makes each of those a block formatting context, and a BFC
+root does not overlap a float's margin box: it sits beside it and the
+sidebar's own margins become a real gap. Measured after: 19px clear on both
+sides, where before the boxes coincided.
+
+## In-page anchors carry no underline
+
+A jump within the page is not a departure, and a document with many of them -
+a contents list especially - becomes a wall of rules. Colour and the `#`
+marker still identify it, and the underline returns on hover so the affordance
+survives. Inside a `.. contents::` every entry is an anchor, so the marker
+stops distinguishing anything and is dropped there too.
+
 ## docutils hides some structure in nesting, not in attributes
 
 Three cases where the obvious CSS target does not exist:

@@ -41,6 +41,7 @@
 
 <style>
   .rst-aside {
+    display: flow-root;
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.8rem 1rem;
@@ -54,8 +55,11 @@
     .rst-aside[data-kind='sidebar'] {
       float: inline-end;
       width: 40%;
+      /* Margins on all four sides: neighbouring blocks are block formatting
+         contexts (see app.css) and sit beside the float rather than under it,
+         so these are the gap between the two boxes rather than decoration. */
       margin-inline-start: 1.2rem;
-      margin-block-start: 0.3rem;
+      margin-block: 0.3rem 1rem;
     }
   }
   .aside-title {

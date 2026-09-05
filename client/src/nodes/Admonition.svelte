@@ -27,6 +27,9 @@
 
 <style>
   .admonition {
+    /* Beside a floated sidebar, a block formatting context sits next to the
+       float instead of running underneath it. See app.css. */
+    display: flow-root;
     border-left: 3px solid var(--muted);
     background: var(--code-bg);
     padding: 0.6rem 0.9rem;
