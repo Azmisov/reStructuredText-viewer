@@ -178,6 +178,21 @@ the inline markup is the entire point of the directive. Highlighting flattens
 children to a string, so the client checks for element children and renders
 them instead - highlighting is only for blocks that are nothing but text.
 
+## Each quote-like block owns a different visual axis
+
+docutils gives `epigraph`, `pull-quote` and `highlights` the same node type - a
+`block_quote` with a class - and admonitions, topics and sidebars are boxes
+too, so without care they all converge on "tinted panel behind a coloured left
+bar". `highlights` had converged exactly onto a tip admonition.
+
+A tinted fill behind a left accent is this viewer's *callout* vocabulary.
+Everything else avoids it and takes a different axis: an epigraph is italic
+behind a left rule, a pull-quote is centred between two rules, a plain quote
+hangs off a large quotation mark, and highlights is set as a lede - larger and
+looser, inset symmetrically, with no fill, border or accent at all. The
+symmetry is what separates it at a glance from anything hanging off a left
+rule.
+
 ## Bordered blocks are block formatting contexts
 
 A float shortens the *line boxes* beside it, but a neighbouring block's own

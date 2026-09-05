@@ -288,13 +288,22 @@ blockquote.pull-quote {
   padding-block: 1rem;
   margin-block: calc(var(--block-gap) * 1.5);
 }
+/* A lede, not a callout.
+   A tinted panel behind a coloured left bar is this viewer's callout
+   vocabulary - admonitions, and a tip in particular, look exactly like that -
+   so highlights borrows none of it. It is set as a summary paragraph instead:
+   larger and looser than body copy, inset symmetrically on both sides, with no
+   fill, no border and no accent. The symmetry is what tells it apart at a
+   glance from everything that hangs off a left rule. */
 blockquote.highlights {
   border: none;
-  background: color-mix(in srgb, var(--code-bg) 70%, transparent);
-  border-inline-start: 3px solid var(--ok);
-  padding: 0.8rem 1rem;
+  background: none;
+  padding: 0 1.6rem;
+  margin-block: calc(var(--block-gap) * 1.5);
   margin-inline: 0;
-  font-size: 0.96em;
+  font-size: 1.1em;
+  line-height: 1.55;
+  color: var(--fg);
 }
 blockquote.epigraph > :last-child,
 blockquote.pull-quote > :last-child,
