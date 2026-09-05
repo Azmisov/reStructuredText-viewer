@@ -1,0 +1,9 @@
+.vscode/**
+src/**
+scripts/**
+tsconfig.json
+node_modules/**
+pnpm-lock.yaml
+**/*.map
+**/__pycache__/**
+*.vsix

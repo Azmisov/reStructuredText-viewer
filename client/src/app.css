@@ -1,0 +1,231 @@
+/* Milestone 4 replaces this with a full token set + explicit theme toggle.
+   For now the three theme states are already wired: explicit data-theme wins,
+   otherwise prefers-color-scheme decides. */
+:root {
+  --bg: #fbfbfa;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --border: #e3e3e0;
+  --bar-bg: #ffffffcc;
+  --code-bg: #f4f4f2;
+  --link: #0b62d0;
+  --error: #b42318;
+  --error-bg: #fef3f2;
+  --warn: #b45309;
+  --ok: #067647;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* Set at runtime from settings; these are the fallbacks. */
+  --base-font-size: 16px;
+  --gap-scale: 1;
+  --content-width: 46rem;
+  --content-margin: 0 auto;
+  /* Height of the sticky top bar. Anchors offset by this so a linked heading
+     lands below the bar rather than behind it. */
+  --nav-height: 2.6rem;
+  --block-gap: calc(1rem * var(--gap-scale));
+}
+
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    --bg: #16181c;
+    --fg: #e6e6e3;
+    --muted: #8b929e;
+    --border: #2b2f36;
+    --bar-bg: #1b1e23cc;
+    --code-bg: #1f2329;
+    --link: #6fb0ff;
+    --error: #f97066;
+    --error-bg: #2a1615;
+    --warn: #f0a92e;
+    --ok: #47c98a;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #16181c;
+  --fg: #e6e6e3;
+  --muted: #8b929e;
+  --border: #2b2f36;
+  --bar-bg: #1b1e23cc;
+  --code-bg: #1f2329;
+  --link: #6fb0ff;
+  --error: #f97066;
+  --error-bg: #2a1615;
+  --warn: #f0a92e;
+  --ok: #47c98a;
+}
+
+html {
+  font-size: var(--base-font-size);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  /* Line height tightens with the spacing setting too; block gaps alone leave
+     dense text feeling airy and roomy text feeling cramped. */
+  line-height: calc(1.4 + 0.25 * var(--gap-scale));
+  margin: 0;
+  /* A VS Code webview arrives with host padding on the body, which insets the
+     sticky bar along with everything else. The bar is meant to be full-bleed;
+     horizontal space is the content column's business, not the page's. */
+  padding: 0;
+}
+
+/* Block rhythm is one variable, so 'tight' and 'roomy' stay proportional. */
+p, ul, ol, dl, blockquote, pre, table, figure, .rst-literal-block {
+  margin-block: var(--block-gap);
+}
+h1, h2, h3, h4, h5, h6 {
+  margin-block: calc(var(--block-gap) * 1.5) var(--block-gap);
+  line-height: 1.25;
+}
+li { margin-block: calc(var(--block-gap) * 0.25); }
+li > p { margin-block: calc(var(--block-gap) * 0.25); }
+a { color: var(--link); }
+code { font-family: var(--mono); font-size: 0.9em; }
+.rst-literal-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  font-size: 0.92em;
+  margin: 1.25rem 0;
+}
+td, th {
+  border: 1px solid var(--border);
+  padding: calc(0.45rem * var(--gap-scale)) 0.75rem;
+  vertical-align: top;
+  text-align: left;
+  /* Cells are short strings, not prose; the body line-height is too airy. */
+  line-height: 1.35;
+}
+th { background: var(--code-bg); font-weight: 600; }
+/* docutils wraps every cell body in a <p>; its default 1em margins, not the
+   cell padding, are what makes reST tables tall. */
+td > p, th > p { margin: 0; }
+td > p + p, th > p + p { margin-top: 0.35rem; }
+
+/* Shiki emits both palettes as CSS variables in one pass, so switching theme
+   is a variable swap - no re-highlight, no second stylesheet to generate. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    .shiki,
+    .shiki span {
+      color: var(--shiki-dark);
+      background-color: var(--shiki-dark-bg);
+    }
+  }
+}
+:root[data-theme='dark'] .shiki,
+:root[data-theme='dark'] .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+/* Grid, not the default inline flow: Shiki separates .line spans with literal
+   "\n" text nodes, which <pre> renders. Any per-line box (a gutter, a
+   highlight) would then add a second break and double-space the code. Grid
+   discards whitespace-only text nodes, so one row per line falls out exactly -
+   and it drops the stray trailing line too. */
+.shiki code {
+  display: grid;
+}
+.shiki {
+  padding: 0 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 0;
+}
+
+
+/* Source is not prose: code keeps its own direction regardless of the base
+   direction dir="auto" resolves for surrounding text. */
+pre,
+.shiki {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Fragment links and outline clicks must clear the sticky bar. scroll-margin
+   applies to the element being scrolled to, so it covers both in-page anchors
+   and scrollIntoView. */
+[id] {
+  scroll-margin-top: calc(var(--nav-height) + 0.6rem);
+}
+
+/* Line numbers via CSS counters: Shiki emits one .line span per line, so no
+   extra markup is needed. user-select:none keeps them out of copied code. */
+.numbered .shiki {
+  /* The gutter runs to the edge, so the block's own left padding goes away. */
+  padding-left: 0;
+}
+.numbered .shiki code {
+  counter-reset: rstview-line;
+}
+.numbered .shiki .line::before {
+  counter-increment: rstview-line;
+  content: counter(rstview-line);
+  display: inline-block;
+  width: 2.2em;
+  padding-right: 0.7em;
+  margin-right: 0.9em;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+  -webkit-user-select: none;
+  /* Shiki themes carry no gutter colour, so derive one from the theme's own
+     background: nudged toward the text colour by a few percent. Which
+     direction depends on the theme, hence the per-mode blocks below. */
+  background: color-mix(in srgb, var(--shiki-light-bg, transparent) 92%, #000 8%);
+  border-right: 1px solid color-mix(in srgb, var(--shiki-light-bg, transparent) 84%, #000 16%);
+  /* The gutter stays put while the code scrolls under it. `.shiki` is the
+     scroll container, so sticky resolves against that. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    .numbered .shiki .line::before {
+      background: color-mix(in srgb, var(--shiki-dark-bg, transparent) 88%, #fff 12%);
+      border-right-color: color-mix(in srgb, var(--shiki-dark-bg, transparent) 78%, #fff 22%);
+    }
+  }
+}
+:root[data-theme='dark'] .numbered .shiki .line::before {
+  background: color-mix(in srgb, var(--shiki-dark-bg, transparent) 88%, #fff 12%);
+  border-right-color: color-mix(in srgb, var(--shiki-dark-bg, transparent) 78%, #fff 22%);
+}
+
+/* Wrap mode. `pre-wrap` keeps indentation but lets long lines fold, so the
+   block stops scrolling horizontally. */
+.wrapped .shiki code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* With numbers, a wrapped line must not run back under the gutter. A hanging
+   indent does that: padding reserves the gutter on every visual line, and a
+   negative text-indent pulls the first one back so the number sits in it.
+   NOT a two-column grid - grid makes every token <span> its own cell, which
+   shatters the line into one fragment per token. */
+.wrapped.numbered .shiki .line {
+  padding-left: 3.8em;
+  text-indent: -3.8em;
+}
+.wrapped.numbered .shiki .line::before {
+  /* Nothing scrolls horizontally now, so sticky has no work to do. */
+  position: static;
+}

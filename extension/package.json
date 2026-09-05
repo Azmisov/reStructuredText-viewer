@@ -1,0 +1,85 @@
+{
+  "name": "restructuredtext-viewer",
+  "displayName": "reStructuredText Viewer",
+  "description": "Live preview for reStructuredText, rendered from a docutils AST.",
+  "version": "0.1.0",
+  "publisher": "Azmisov",
+  "license": "LGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Azmisov/reStructuredText-viewer.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onWebviewPanel:rstview.preview"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "rstview.showPreview",
+        "title": "Open Preview to the Side",
+        "category": "reStructuredText",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "rstview.showPreviewToCurrentColumn",
+        "title": "Open Preview",
+        "category": "reStructuredText"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "rstview.showPreview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorLangId == restructuredtext"
+      },
+      {
+        "command": "rstview.showPreviewToCurrentColumn",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorLangId == restructuredtext"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "rstview.showPreview",
+          "when": "editorLangId == restructuredtext",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "reStructuredText Viewer",
+      "properties": {
+        "rstview.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "Interpreter used to run `rstview`. Supports `${workspaceFolder}`.\n\nLeave empty to use the Python extension's active interpreter, falling back to `python3` on PATH. Any Python 3.10+ works \u2014 docutils and the renderer ship with the extension, so nothing needs installing into it."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "build": "pnpm run vendor && pnpm --dir ../client build:vscode && pnpm run compile",
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "package": "pnpm run build && pnpm dlx @vscode/vsce package --no-dependencies",
+    "vscode:prepublish": "pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.7.0"
+  }
+}

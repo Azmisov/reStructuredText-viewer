@@ -1,0 +1,68 @@
+/* VS Code webview theming.
+ *
+ *  Every rule is scoped to a class the host puts on <body>, so this file is
+ *  inert in a browser and can be imported unconditionally.
+ *
+ *  Only the chrome is remapped. Syntax colours come from Shiki, which emits
+ *  both palettes as CSS variables in one pass - `settings.svelte.js` defaults
+ *  them to Light Plus and Dark Plus, VS Code's own themes, and flips between
+ *  them from the same body class this file keys on.
+ *
+ *  Every mapping keeps our own value as the fallback: `--vscode-*` variables
+ *  exist only for colours the active theme actually defines, and a missing one
+ *  must degrade to the standalone look rather than to nothing.
+ */
+body.vscode-light,
+body.vscode-dark,
+body.vscode-high-contrast,
+body.vscode-high-contrast-light {
+  --bg: var(--vscode-editor-background, #fbfbfa);
+  --fg: var(--vscode-editor-foreground, #1f2328);
+  --muted: var(--vscode-descriptionForeground, #6b7280);
+  /* --border is set per theme kind below, not from a theme variable.
+     `panel.border` separates large workbench surfaces and is tuned to be
+     nearly invisible against the editor - #2B2B2B on #1F1F1F in Dark Modern,
+     #414339 on #272822 in Monokai, absent entirely in Dark (Visual Studio).
+     Table and code-block rules are drawn *on* content and have to be seen. */
+  /* The bar reads as chrome rather than content, so it borrows the editor's
+     own chrome colour instead of the editor background. */
+  --bar-bg: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-sideBar-background, #ffffffcc));
+  --code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, #f4f4f2));
+  --link: var(--vscode-textLink-foreground, #0b62d0);
+  --error: var(--vscode-errorForeground, #b42318);
+  --error-bg: var(--vscode-inputValidation-errorBackground, #fef3f2);
+  --warn: var(--vscode-editorWarning-foreground, #b45309);
+  --ok: var(--vscode-testing-iconPassed, #067647);
+  /* The editor's font, so a preview beside a source file matches it. */
+  --mono: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+/* The bar's blur is a browser affordance over scrolling content; against a
+   solid themed chrome colour it only muddies the edge. */
+body.vscode-light .bar,
+body.vscode-dark .bar,
+body.vscode-high-contrast .bar,
+body.vscode-high-contrast-light .bar {
+  backdrop-filter: none;
+}
+
+/* Nudge the background toward white or black rather than toward the theme's
+   own foreground: a theme whose text is already low-contrast (Abyss, #6688cc
+   on #000c18) would hand down that weakness to every rule drawn from it. The
+   direction has to be chosen per kind, which is what these classes are for -
+   the same trick the line-number gutter uses.
+
+   High contrast themes define `contrastBorder` precisely so borders are
+   visible; where it exists it wins. */
+body.vscode-dark {
+  --border: color-mix(in srgb, var(--bg) 70%, #fff 30%);
+}
+body.vscode-light {
+  --border: color-mix(in srgb, var(--bg) 78%, #000 22%);
+}
+body.vscode-high-contrast {
+  --border: var(--vscode-contrastBorder, color-mix(in srgb, var(--bg) 55%, #fff 45%));
+}
+body.vscode-high-contrast-light {
+  --border: var(--vscode-contrastBorder, color-mix(in srgb, var(--bg) 60%, #000 40%));
+}

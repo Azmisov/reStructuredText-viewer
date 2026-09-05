@@ -1,0 +1,38 @@
+[project]
+name = "reStructuredText-viewer"
+version = "0.1.0"
+description = "Live-reloading reStructuredText previewer with a component-aware AST"
+readme = "README.md"
+license = "LGPL-3.0-or-later"
+license-files = ["COPYING", "COPYING.LESSER"]
+requires-python = ">=3.10"
+dependencies = [
+    "docutils>=0.21",
+    "starlette>=0.37",
+    "uvicorn>=0.30",
+    "watchdog>=4.0",
+    "websockets>=12.0",
+]
+
+[project.optional-dependencies]
+strict = ["readme_renderer>=44"]
+test = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/Azmisov/reStructuredText-viewer"
+Source = "https://github.com/Azmisov/reStructuredText-viewer"
+
+[project.scripts]
+rstview = "rstview.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rstview"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:rstview.*"]

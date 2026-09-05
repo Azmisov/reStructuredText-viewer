@@ -1,0 +1,13 @@
+{
+  "components": {
+    "chart": {
+      "options": { "series": "json", "title": "string", "height": "int" },
+      "required": ["series"],
+      "parse_body": false
+    },
+    "callout": {
+      "options": { "kind": "string", "title": "string" },
+      "parse_body": true
+    }
+  }
+}
