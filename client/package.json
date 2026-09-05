@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:vscode": "VITE_TARGET=vscode vite build"
+    "build:vscode": "VITE_TARGET=vscode vite build",
+    "build:demo": "VITE_TARGET=demo vite build"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",

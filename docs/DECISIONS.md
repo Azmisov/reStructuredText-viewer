@@ -358,3 +358,59 @@ See [VSCODE_PLAN.md](VSCODE_PLAN.md). Briefly: a webview reaching a localhost
 port is an extra listening socket, an origin check, and a story about remote and
 SSH windows; the extension host already has a child process and a message
 channel.
+
+## The file dialog's lookups are transport messages, not HTTP routes
+
+`browse` and `locate` began as `fetch('/api/browse')` from `FilePicker.svelte`,
+which quietly made the dialog a browser-only feature: a webview has no server
+to fetch from, and the published demo has no server at all. Moving them onto
+the transport made the dialog work anywhere the client does.
+
+They are the only request/response pairs in a protocol that is otherwise the
+server deciding when to speak, so they carry an `id` the reply echoes. Without
+it a refused lookup arrives as an unaddressed `error` and lands in the document
+pane — replacing whatever the reader was looking at because they mistyped a
+path in a dialog. The HTTP routes stay as a read-only surface for scripting,
+alongside `/api/doc` and `/api/documents`, which the client has never used
+either.
+
+## A release is a version bump, not a commit
+
+Pushing to `main` runs the tests and republishes the demo; it cuts a release
+only when `pyproject.toml`'s version does not yet have a tag. Releasing every
+commit would have meant a release per typo fix and a version number that says
+nothing; a tag-only trigger would have meant remembering a second step. This
+way the deliberate act — deciding this is worth shipping — is a line in the diff
+that reviews alongside the change it ships.
+
+`tests/test_packaging.py` holds `extension/package.json` to the same version,
+since both come out of one tag and a mismatch names a release that does not
+exist.
+
+## The wheel needs a build step that `.gitignore` hides
+
+`src/rstview/client/` is build output and is gitignored; hatchling honours VCS
+ignores, and `uv build` derives the wheel from the sdist. Three ordinary
+decisions compose into a wheel that installs cleanly and then answers *"Client
+bundle not built"* to every request. `[tool.hatch.build] artifacts` overrides
+the ignore, and CI opens the wheel and asserts the assets are in it — a check
+worth keeping because the failure is invisible until someone installs it.
+
+## The demo's fixtures are recorded, not written
+
+The published demo replays a transcript of what the server would have answered
+for `samples/`, generated at build time by `scripts/fixtures.py` from the same
+`Library` the server uses. Hand-written fixtures would be a second renderer to
+keep in step; recorded ones cannot drift, and a parsing change shows up in the
+demo on the next push with nothing to update.
+
+They are not committed, for the same reason the client bundle and the vendored
+docutils are not: reproducible from what is in the tree. What is committed is
+`tests/test_fixtures.py`, which asserts the recording covers the corpus — every
+document, every filter toggle the dialog offers, the images the samples point
+at — because nothing else would notice the demo going blank.
+
+The demo reports its root as `/samples` rather than wherever CI checked the
+repository out, and reports its status as `demo` rather than `live`. It is not
+watching anything, and saying otherwise in the corner of the page would be a
+small lie repeated to everyone who visits.

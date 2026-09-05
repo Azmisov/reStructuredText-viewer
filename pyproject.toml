@@ -29,6 +29,13 @@ rstview = "rstview.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+# `src/rstview/client/` is the built web bundle: gitignored, and hatchling
+# honours VCS ignores. Without listing it as an artifact the sdist - and the
+# wheel `uv build` derives from it - ship a server whose only response is
+# "Client bundle not built".
+artifacts = ["src/rstview/client/**"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/rstview"]
 

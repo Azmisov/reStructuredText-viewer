@@ -21,13 +21,42 @@ export function createConnection(transport) {
 
   let wanted = null; // Survives a reconnect so we reopen the right document.
 
+  // The file dialog's two lookups are the only request/response pairs in an
+  // otherwise push-only protocol, so they carry an id and land here rather
+  // than in the state above.
+  let nextId = 1;
+  const pending = new Map();
+
   transport.onStatus((next) => {
     status = next;
+    if (next !== 'live') {
+      // A dropped transport will never answer; a dialog hung forever is worse
+      // than one showing an error.
+      for (const { reject } of pending.values()) reject(new Error('connection lost'));
+      pending.clear();
+    }
     // A transport that reconnects comes back blank; ask for the document again.
     if (next === 'live' && wanted) transport.send({ type: 'open', path: wanted });
   });
 
+  function request(payload) {
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      if (!transport.send({ ...payload, id })) return reject(new Error('not connected'));
+      pending.set(id, { resolve, reject });
+    });
+  }
+
   transport.onMessage((message) => {
+    if (message.id != null && pending.has(message.id)) {
+      const { resolve, reject } = pending.get(message.id);
+      pending.delete(message.id);
+      // A failed lookup belongs to the dialog that asked for it, not to the
+      // document pane, so it must not fall through to the `error` branch.
+      if (message.type === 'error') reject(new Error(message.message));
+      else resolve(message);
+      return;
+    }
     if (message.type === 'doc') {
       // A push for a document we've navigated away from is stale.
       if (wanted && message.path !== wanted) return;
@@ -62,6 +91,12 @@ export function createConnection(transport) {
      *  connecting" from "connected, but no document open". */
     get ready() { return ready; },
     refresh() { transport.send({ type: 'list' }); },
+    /** One directory's contents, for the file dialog. */
+    browse(path, { hidden = false, all = false } = {}) {
+      return request({ type: 'browse', path: path ?? '', hidden, all });
+    },
+    /** Resolve a pasted path - absolute or relative - to a library path. */
+    locate(path) { return request({ type: 'locate', path }); },
     open(next) {
       if (!next || next === wanted) return;
       wanted = next;

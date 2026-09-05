@@ -87,6 +87,38 @@ class Session:
     async def listing(self):
         await self.send({"type": "list", "documents": self.library.listing()})
 
+    async def _reply(self, request, payload):
+        """Answer one request, tagged with the `id` it carried.
+
+        Everything else in the vocabulary is a push - the server decides when
+        to speak - so only the dialog's two lookups need correlation. An `id`
+        the client did not send is simply absent from the reply.
+        """
+        rid = request.get("id")
+        await self.send(payload if rid is None else {**payload, "id": rid})
+
+    async def browse(self, message):
+        """One directory's contents, for the file dialog."""
+        try:
+            payload = self.library.browse(
+                message.get("path") or "",
+                show_hidden=bool(message.get("hidden")),
+                show_all=bool(message.get("all")),
+            )
+        except DocumentError as exc:
+            await self._reply(message, {"type": "error", "message": str(exc)})
+            return
+        await self._reply(message, {"type": "browse", **payload})
+
+    async def locate(self, message):
+        """Resolve a pasted path, so the dialog can jump straight to it."""
+        try:
+            payload = self.library.locate(message.get("path"))
+        except DocumentError as exc:
+            await self._reply(message, {"type": "error", "message": str(exc)})
+            return
+        await self._reply(message, {"type": "locate", **payload})
+
     async def handle(self, message):
         kind = message.get("type")
         if kind == "open":
@@ -95,6 +127,10 @@ class Session:
             await self.source(message.get("path"), message.get("text") or "")
         elif kind == "list":
             await self.listing()
+        elif kind == "browse":
+            await self.browse(message)
+        elif kind == "locate":
+            await self.locate(message)
 
     def close(self):
         if self.current is not None:

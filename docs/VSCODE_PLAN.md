@@ -114,10 +114,14 @@ reconnect loop). Selected by `import.meta.env.VITE_TARGET`.
 Also conditionalise the browser-only globals in `App.svelte`: `history.pushState`,
 `popstate`, `location.search`. In VS Code, navigation posts to the host instead.
 
-**File dialog** — `FilePicker.svelte` and `/api/browse` + `/api/locate` exist
-only because a browser cannot supply a real path. VS Code can. In the extension
-build, replace with `showQuickPick` over `workspace.findFiles`. Exclude the
-picker from that bundle.
+**File dialog** — `FilePicker.svelte` exists only because a browser cannot
+supply a real path. VS Code can. In the extension build, replace with
+`showQuickPick` over `workspace.findFiles`. Exclude the picker from that bundle.
+
+(Since written, `browse` and `locate` moved off the HTTP routes and onto the
+transport, so the dialog *would* now work unchanged in a webview. That does not
+change the plan — a quick-pick is the native thing — it only means the picker is
+excluded because it is the wrong UI there, not because it is broken there.)
 
 **Root** — in VS Code the natural root is the workspace folder, not the
 document's directory. `library.resolve`'s containment stays as the backstop for

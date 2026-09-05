@@ -1,0 +1,40 @@
+name: Toolchain
+description: Python, Node and pnpm, pinned to what the project is developed against.
+
+inputs:
+  node:
+    description: >
+      Whether this job builds anything. The test job runs pytest alone, and
+      setting pnpm up for it leaves the cache with nothing to save, which
+      fails the job in its post step.
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        # The dependencies are declared in pyproject.toml; there is no lockfile
+        # to key on, and without this the cache never invalidates.
+        cache-dependency-glob: pyproject.toml
+
+    - uses: pnpm/action-setup@v4
+      if: inputs.node == 'true'
+      with:
+        version: 11
+
+    - uses: actions/setup-node@v4
+      if: inputs.node == 'true'
+      with:
+        node-version: 22
+        cache: pnpm
+        # Both trees are installed by one job or another; caching either alone
+        # would leave the other downloading everything on every run.
+        cache-dependency-path: |
+          client/pnpm-lock.yaml
+          extension/pnpm-lock.yaml
