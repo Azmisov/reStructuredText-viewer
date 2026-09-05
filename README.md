@@ -31,6 +31,10 @@ A link pointing at another local `.rst` file loads that document into the page
 instead of navigating away, so scroll, settings and loaded syntax grammars all
 survive. Back works.
 
+Images are served from beside the document they appear in, under the same
+containment rules. Maths — `.. math::` and the `:math:` role — renders with
+KaTeX, loaded only when a document actually contains a formula.
+
 By default `--root` is the whole filesystem, which is safe because the server
 binds loopback only. Bind it anywhere else and the root narrows to the starting
 document's directory; everything outside is refused.
@@ -41,10 +45,12 @@ The gear icon opens a panel persisted to `localStorage`: light/dark/system,
 spacing, font size, content width and position, code line numbers, line
 wrapping, and separate light and dark syntax themes (all 65 Shiki themes).
 
+### Styling from inside a document
+
 A `.. raw:: html` block's **stylesheet** is honoured — somewhere to define the
 classes that `.. class::` and custom roles attach — while raw markup stays
 dropped. The rules are scoped to the document body, so a stylesheet cannot
-reach the viewer's own chrome.
+reach the viewer's own chrome, and `@import` is stripped.
 
 ### Custom blocks
 

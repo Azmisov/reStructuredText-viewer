@@ -48,6 +48,17 @@ Verified empirically across edit, insert, append and reorder before it was
 trusted: reordering list items changes nothing, and editing a paragraph
 disturbs no ancestor.
 
+## Watching
+
+Watches follow documents, not the root: one non-recursive watch per directory,
+added as each document is first opened (`Library.on_load`). Watching the root
+recursively is wrong as soon as the root is broad — the default root on a
+loopback bind is the whole filesystem — and it takes the server down before it
+finishes starting. See [DECISIONS.md](DECISIONS.md).
+
+Under `--stdio` there is no watcher at all: the editor sends buffer text, so
+the preview follows what is on screen rather than what is on disk.
+
 ## Transports
 
 The client talks to a transport of `{send, onMessage, onStatus}` and does not
@@ -79,9 +90,14 @@ Path containment is a security boundary, not a detail. `--root` defaults to the
 whole filesystem when bound to loopback and narrows to the starting document's
 directory otherwise. Absolute paths, `..` traversal, symlinks pointing out of
 the tree, and non-reST files are all rejected server-side — after `realpath`,
-never before — and `/api/browse` and `/api/locate` apply the same check as
-document loading. Entries symlinked out of the tree are omitted from listings
-rather than listed and then refused.
+never before — and `/api/browse`, `/api/locate` and `/media` apply the same
+check as document loading. Entries symlinked out of the tree are omitted from
+listings rather than listed and then refused.
+
+`/media` is the one widening: `resolve_asset` drops the reST suffix
+requirement, since an `.. image::` target is not a document, and keeps every
+other rule including the directory refusal. Widening *what* may be read must
+not widen *where*.
 
 ## Layout of the repo
 
@@ -89,6 +105,7 @@ rather than listed and then refused.
 |---|---|
 | `src/rstview/` | parser, library, watcher, Starlette app, stdio loop, CLI |
 | `client/src/` | Svelte 5 client; `registry.js` maps node types to components |
-| `samples/` | multi-document sample set |
+| `extension/` | VS Code extension over `--stdio`, with docutils vendored in |
+| `samples/` | sample documents; `directives.rst` exercises every docutils built-in |
 | `docs/` | these notes |
 | `tests/` | pytest suite |
