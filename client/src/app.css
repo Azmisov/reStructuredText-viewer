@@ -429,3 +429,16 @@ blockquote:not(.epigraph):not(.pull-quote):not(.highlights) cite {
 p.align-left, div.align-left, blockquote.align-left { text-align: left; }
 p.align-center, div.align-center, blockquote.align-center { text-align: center; }
 p.align-right, div.align-right, blockquote.align-right { text-align: right; }
+
+
+/* --- Title references --------------------------------------------------- */
+/* The default role: the title of a work, which is what bare single backticks
+   mean. Italic is the convention and is kept; the muted colour is what
+   separates it from emphasis, which is the one thing italic alone cannot do.
+   Not small caps - that convention belongs to author names and acronyms, it
+   synthesises badly where the font lacks the glyphs, and it does nothing at
+   all for non-Latin scripts. */
+.rst-title-ref {
+  color: var(--muted);
+  font-style: italic;
+}

@@ -133,7 +133,10 @@ export const TYPE_CLASS = {
   // both levels need a hook or there is nothing for the indent to hang on.
   line_block: 'rst-line-block',
   line: 'rst-line',
-  rubric: 'rst-rubric'
+  rubric: 'rst-rubric',
+  // Both `title_reference` and `attribution` render as <cite>, so styling the
+  // element would catch both. The hook keeps the two apart.
+  title_reference: 'rst-title-ref'
 };
 
 /** Block-level text containers, which need their own base direction so a

@@ -178,6 +178,22 @@ the inline markup is the entire point of the directive. Highlighting flattens
 children to a string, so the client checks for element children and renders
 them instead - highlighting is only for blocks that are nothing but text.
 
+## A title reference is muted italic, not small caps
+
+Bare single backticks mean a title reference - the title of a work - and it
+renders as `<cite>`, which browsers italicise. That made it identical to
+emphasis. Italic stays, since it is the convention for titles; the muted colour
+is what separates the two, on an axis emphasis is not using.
+
+Small caps was the other candidate and is worse on three counts: the convention
+belongs to author names, acronyms and legal citations rather than to titles; it
+synthesises badly where the font lacks real small-cap glyphs, which varies by
+platform for a `system-ui` stack; and it does nothing at all for non-Latin
+scripts, so the distinction would vanish in `samples/rtl.rst`.
+
+`attribution` also renders as `<cite>`, so the styling hangs off a type class
+rather than the element - an attribution stays upright.
+
 ## Each quote-like block owns a different visual axis
 
 docutils gives `epigraph`, `pull-quote` and `highlights` the same node type - a
