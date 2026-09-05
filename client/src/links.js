@@ -34,3 +34,21 @@ export function resolveDocumentLink(refuri, from) {
   }
   return { path: parts.join('/'), hash };
 }
+
+/** Resolve an `.. image::` URI to something the page can load.
+ *
+ *  Left alone if it already names a scheme (`https:`, `data:`) or is
+ *  site-absolute. Otherwise it is relative to the *document*, not to the page
+ *  URL - two different things as soon as one document links to another in a
+ *  subdirectory - so it is rebased and pointed at the media route.
+ *
+ *  `base` is where that route lives: `/media/` for the standalone server, and
+ *  the webview URI of the root when running inside an editor, which cannot
+ *  fetch from a server it does not have.
+ */
+export function resolveAsset(uri, from, base = '/media/') {
+  if (!uri || EXTERNAL.test(uri) || uri.startsWith('//') || uri.startsWith('/')) return uri;
+  const { path } = resolveDocumentLink(uri, from);
+  if (!path) return uri;
+  return base + path.split('/').map(encodeURIComponent).join('/');
+}

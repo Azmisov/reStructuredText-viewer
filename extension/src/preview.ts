@@ -15,10 +15,13 @@ function rootFor(document: vscode.Uri): string {
     ?? path.dirname(document.fsPath);
 }
 
-function viewOptions(extensionUri: vscode.Uri) {
+function viewOptions(extensionUri: vscode.Uri, root: string) {
   return {
     enableScripts: true,
-    localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')],
+    // The document's own root as well as the bundle: an `.. image::` points at
+    // a file next to the document, and a webview may only load from roots
+    // named here.
+    localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media'), vscode.Uri.file(root)],
     // Milestone 9 measures a cold Shiki highlight and drops this if it is fast
     // enough; until then, keeping the context is one line.
     retainContextWhenHidden: true
@@ -52,7 +55,7 @@ class Preview {
       'rstview.preview',
       `Preview ${path.basename(document.fsPath)}`,
       { viewColumn: column, preserveFocus: true },
-      viewOptions(extensionUri)
+      viewOptions(extensionUri, rootFor(document))
     );
     return Preview.adopt(panel, extensionUri, document);
   }
@@ -65,7 +68,7 @@ class Preview {
     extensionUri: vscode.Uri,
     document: vscode.Uri
   ): Promise<Preview> {
-    panel.webview.options = viewOptions(extensionUri);
+    panel.webview.options = viewOptions(extensionUri, rootFor(document));
     panel.title = `Preview ${path.basename(document.fsPath)}`;
 
     const preview = new Preview(panel, extensionUri, document, rootFor(document));
@@ -161,6 +164,13 @@ class Preview {
       );
       if (open?.isDirty) this.push(open);
       void this.sendTheme();
+      // Where document-relative images resolve from. There is no server here,
+      // so the client is handed the webview URI of the root instead of a path.
+      const base = this.panel.webview.asWebviewUri(vscode.Uri.file(this.root)).toString();
+      void this.panel.webview.postMessage({
+        type: 'media-base',
+        base: base.endsWith('/') ? base : `${base}/`
+      });
     }
     this.panel.webview.postMessage(message);
   }

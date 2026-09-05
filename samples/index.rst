@@ -8,7 +8,8 @@ Introduction
 Hello *world*, with a `link <https://example.com>`_, ``inline code``, and a
 footnote [#note]_.
 
-Cross-document: read the `user guide <guide.rst>`_ or jump straight to
+Cross-document: read the `user guide <guide.rst>`_, browse every directive in
+the `directive showcase <directives.rst>`_, or jump straight to
 `installing <guide.rst#installing>`_. In this document, see `Tables`_.
 
 - first item

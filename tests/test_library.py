@@ -103,3 +103,25 @@ def test_filesystem_root_still_rejects_non_rest_files(tmp_path):
     other.write_text("x")
     with pytest.raises(DocumentError):
         Library("/").resolve(str(other))
+
+
+def test_assets_are_contained_like_documents(tmp_path):
+    """Images are read through `resolve_asset`, which drops the suffix check.
+
+    Widening *what* may be read must not widen *where*: the same realpath and
+    containment rules still apply, or an `.. image:: ../../../etc/passwd` in
+    someone else's document would read it.
+    """
+    root = tmp_path / "root"
+    (root / "sub").mkdir(parents=True)
+    (root / "sub" / "pic.png").write_bytes(b"\x89PNG")
+    (tmp_path / "outside.png").write_bytes(b"\x89PNG")
+    (root / "escape.png").symlink_to(tmp_path / "outside.png")
+
+    library = Library(str(root))
+
+    assert library.resolve_asset("sub/pic.png") == str((root / "sub" / "pic.png").resolve())
+
+    for bad in ("../outside.png", "/etc/passwd", "escape.png", "sub", ""):
+        with pytest.raises(DocumentError):
+            library.resolve_asset(bad)

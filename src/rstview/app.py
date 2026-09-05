@@ -54,6 +54,19 @@ def create_app(path=None, allowed_origins=None, config=None, root=None):
         except DocumentError as exc:
             return JSONResponse({"type": "error", "message": str(exc)}, status_code=404)
 
+    async def media(request):
+        """Serve a file a document points at - an image, mostly.
+
+        Same containment as documents, so this widens what can be *read* to
+        any file inside the root but not where it can reach. Without it every
+        `.. image::` in every document is a 404.
+        """
+        try:
+            path = library.resolve_asset(request.path_params["path"])
+        except DocumentError as exc:
+            return PlainTextResponse(str(exc), status_code=404)
+        return FileResponse(path)
+
     async def api_entry(request):
         return JSONResponse({"path": entry, "root": root})
 
@@ -107,6 +120,7 @@ def create_app(path=None, allowed_origins=None, config=None, root=None):
     routes = [
         Route("/", index),
         Route("/api/doc", api_doc),
+        Route("/media/{path:path}", media),
         Route("/api/entry", api_entry),
         Route("/api/documents", api_documents),
         Route("/api/browse", api_browse),

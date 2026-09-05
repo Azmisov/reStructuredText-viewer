@@ -97,6 +97,27 @@ class Library:
             raise DocumentError(f"{relpath!r} is not a reStructuredText file")
         return real
 
+    def resolve_asset(self, relpath):
+        """Map a path to a *non-document* file inside the root.
+
+        Documents get `resolve`, which insists on a reST suffix. Images and
+        other things a document points at go through here instead: same
+        containment - realpath before the check, so a symlink cannot step out -
+        but no suffix requirement. Directories are refused, so this cannot be
+        used to enumerate the tree.
+        """
+        if not relpath:
+            raise DocumentError("no asset requested")
+
+        candidate = os.path.normpath(os.path.join(self.root, relpath))
+        real = os.path.realpath(candidate)
+
+        if not self._within(real):
+            raise DocumentError(f"{relpath!r} is outside the document root")
+        if not os.path.isfile(real):
+            raise DocumentError(f"{relpath!r} does not exist")
+        return real
+
     def resolve_dir(self, relpath):
         """Same containment rules as `resolve`, but for a directory."""
         candidate = os.path.normpath(os.path.join(self.root, relpath or "."))

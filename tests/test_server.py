@@ -227,3 +227,16 @@ def test_api_locate_refuses_a_path_outside_the_root(client):
     response = client.get("/api/locate", params={"path": "/etc/passwd"})
     assert response.status_code == 404
     assert "outside the document root" in response.json()["message"]
+
+
+def test_media_route_serves_assets_and_holds_the_boundary(tmp_path):
+    """`.. image::` targets are served, and only from inside the root."""
+    (tmp_path / "pic.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>")
+    (tmp_path / "doc.rst").write_text("Title\n=====\n\n.. image:: pic.svg\n")
+    (tmp_path.parent / "secret.txt").write_text("no")
+
+    app = create_app(str(tmp_path / "doc.rst"), root=str(tmp_path))
+    with TestClient(app) as client:
+        assert client.get("/media/pic.svg").status_code == 200
+        assert client.get("/media/../secret.txt").status_code == 404
+        assert client.get("/media/nope.png").status_code == 404

@@ -192,3 +192,17 @@ def test_plain_stylesheet_has_no_svelte_global_syntax():
     assert ":global(" not in source, (
         "app.css is a plain stylesheet; :global() selectors are dropped by the browser"
     )
+
+
+def test_samples_are_fully_renderable():
+    """Every sample document must render with no Unknown fallbacks.
+
+    `samples/directives.rst` exercises every directive docutils ships with, so
+    this is the widest coverage check there is - it is what caught `compound`,
+    `header`, `footer` and `abbreviation` reaching the page unmapped.
+    """
+    samples = pathlib.Path(__file__).resolve().parents[1] / "samples"
+    declared = _declared()
+    for document in sorted(samples.glob("*.rst")):
+        unhandled = _types(parse(document.read_text(), document.name)) - declared
+        assert not unhandled, f"{document.name}: no mapping for {sorted(unhandled)}"

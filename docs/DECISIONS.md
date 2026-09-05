@@ -136,6 +136,30 @@ This is what keeps the editor's dependency floor at "an interpreter with
 docutils", which matters for any future attempt to bundle rather than ask the
 user to install.
 
+## `raw` is parsed and then dropped
+
+`.. raw:: html` is the one directive deliberately not rendered. The client
+builds a component tree from an AST; honouring `raw` would mean `{@html}` on
+document-supplied markup, which hands any document the viewer opens authority
+over the page it is displayed in - script, styles, and anything else. A preview
+of someone else's file should not be able to do that.
+
+It stays in `HIDDEN` rather than being rejected at parse time, so a document
+using it still renders everywhere else.
+
+## Images are served through a separate resolver
+
+`.. image::` targets are not documents, so `resolve` - which insists on a reST
+suffix - cannot serve them. `resolve_asset` drops the suffix check and keeps
+everything else: realpath before the containment check, no directories, no
+escaping the root. Widening *what* may be read must not widen *where*.
+
+In a webview there is no server to fetch from, so the host adds the root to
+`localResourceRoots` and posts the `asWebviewUri` of it; the client rebases
+relative URIs onto whichever base it has been given. Either way the URI is
+resolved against the *document*, not the page URL - two different things as
+soon as one document links to another in a subdirectory.
+
 ## Borders are derived, not taken from a theme variable
 
 `--vscode-panel-border` is the obvious mapping and the wrong one. It separates

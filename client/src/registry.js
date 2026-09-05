@@ -11,6 +11,8 @@ import Entry from './nodes/Entry.svelte';
 import TableHead from './nodes/TableHead.svelte';
 import Footnote from './nodes/Footnote.svelte';
 import FootnoteReference from './nodes/FootnoteReference.svelte';
+import Math from './nodes/Math.svelte';
+import MathBlock from './nodes/MathBlock.svelte';
 import Unknown from './nodes/Unknown.svelte';
 
 /** docutils types that map cleanly onto a single HTML element. */
@@ -22,6 +24,8 @@ export const SIMPLE = {
   subscript: 'sub',
   superscript: 'sup',
   title_reference: 'cite',
+  abbreviation: 'abbr',
+  acronym: 'abbr',
   bullet_list: 'ul',
   enumerated_list: 'ol',
   list_item: 'li',
@@ -72,6 +76,8 @@ export const COMPONENTS = {
   system_message: SystemMessage,
   component: Component,
   image: Image,
+  math: Math,
+  math_block: MathBlock,
   figure: Figure,
   entry: Entry,
   thead: TableHead,

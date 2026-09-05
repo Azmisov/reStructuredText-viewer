@@ -4,6 +4,8 @@ These are the load-bearing tests for partial updates. The client renders with
 keyed {#each}, so an id that changes means a remounted DOM subtree and lost
 scroll position, focus, and component state.
 """
+import collections
+import pathlib
 import pytest
 
 from rstview.parse import parse
@@ -103,3 +105,32 @@ def test_identical_siblings_get_distinct_ids(ids):
     paragraphs = [c for c in ast["children"] if c["type"] == "paragraph"]
     assert len(paragraphs) == 3
     assert len({p["id"] for p in paragraphs}) == 3, "duplicate keys break keyed each"
+
+
+def _sibling_collisions(node):
+    """Every id repeated among one node's direct children, recursively."""
+    found = []
+    children = node.get("children", [])
+    counts = collections.Counter(child["id"] for child in children)
+    found += [(node["type"], i) for i, n in counts.items() if n > 1]
+    for child in children:
+        found += _sibling_collisions(child)
+    return found
+
+
+def test_identical_text_siblings_get_distinct_ids():
+    """A duplicate key is fatal to the whole `{#each}`, not just to one node.
+
+    Text used to skip the occurrence counter, so a paragraph whose inline
+    markup produced the same separator twice - `` `a`, `b`, `c` `` - crashed
+    the entire render with `each_key_duplicate`.
+    """
+    ast = parse("Runs of :emphasis:`a`, :strong:`b`, and :literal:`c` here.\n")
+    assert _sibling_collisions(ast) == []
+
+
+def test_no_sample_has_colliding_sibling_ids():
+    samples = pathlib.Path(__file__).resolve().parents[1] / "samples"
+    for document in sorted(samples.glob("*.rst")):
+        collisions = _sibling_collisions(parse(document.read_text(), document.name))
+        assert collisions == [], f"{document.name}: {collisions}"

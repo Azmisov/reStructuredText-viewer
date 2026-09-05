@@ -15,7 +15,12 @@ export default defineConfig({
   base: vscode ? './' : '/',
   build: {
     outDir: vscode ? '../extension/media' : '../src/rstview/client',
-    emptyOutDir: true
+    emptyOutDir: true,
+    // Never inline a font. KaTeX ships one face small enough to fall under the
+    // default 4kB threshold, and an inlined font is a `data:` URL - which the
+    // webview's CSP would have to allow for every font just to serve that one.
+    // A file keeps `font-src` at the origin alone.
+    assetsInlineLimit: (file) => (/\.(woff2?|ttf|eot)$/i.test(file) ? false : undefined)
   },
   server: {
     proxy: {

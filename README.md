@@ -94,6 +94,7 @@ anything else can too.
 | **Wire format** | a JSON AST over a WebSocket, not HTML |
 | **Client** | Svelte 5 (runes), built with Vite |
 | **Highlighting** | Shiki, in the browser — themes load lazily, so switching one costs no rebuild |
+| **Maths** | KaTeX, lazily loaded with its own fonts, so a formula looks the same everywhere |
 
 The server describes the document and the client decides how it looks. That is
 the single decision the rest follows from: theming, custom components and the
@@ -107,7 +108,9 @@ less obvious parts are the way they are.
 ## Samples
 
 `samples/` is a small multi-document set — cross-document links, custom blocks,
-tables, code, admonitions, and a right-to-left document.
+and a right-to-left document. `samples/directives.rst` exercises every
+directive docutils ships with, which is also what `tests/test_coverage.py`
+checks the renderer against.
 
 ## Develop
 

@@ -61,10 +61,26 @@ class AstBuilder(docutils.nodes.GenericNodeVisitor):
         super().__init__(document)
         self.root = None
 
+    @staticmethod
+    def _unique(base, ordinals):
+        """Disambiguate identical siblings by their occurrence in the parent.
+
+        Two identical siblings hash identically, and a duplicate key is fatal
+        to the whole `{#each}` block, not just to the node - so every node must
+        go through here, text included.
+        """
+        seen = ordinals[base]
+        ordinals[base] += 1
+        return base if seen == 0 else f"{base}~{seen}"
+
     def build(self, node, ordinals):
         if isinstance(node, docutils.nodes.Text):
             text = node.astext()
-            return {"type": "text", "id": _digest("text", text, []), "value": text}
+            # Text takes the same occurrence counter as every other node. It
+            # used to return early, which meant two identical text siblings -
+            # the ", " between runs of inline markup, say - shared an id, and
+            # Svelte rejects a duplicate key by tearing down the whole render.
+            return {"type": "text", "id": self._unique(_digest("text", text, []), ordinals), "value": text}
 
         type_ = node.tagname
         props = _props(node)
@@ -86,13 +102,7 @@ class AstBuilder(docutils.nodes.GenericNodeVisitor):
         else:
             base = _digest(type_, props, [c["id"] for c in children])
 
-        # Two identical siblings hash identically; Svelte rejects duplicate
-        # keys, so disambiguate by occurrence within the parent.
-        seen = ordinals[base]
-        ordinals[base] += 1
-        node_id = base if seen == 0 else f"{base}~{seen}"
-
-        out = {"type": type_, "id": node_id, "props": props, "children": children}
+        out = {"type": type_, "id": self._unique(base, ordinals), "props": props, "children": children}
         if node.line is not None:
             out["line"] = node.line
         return out

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 90" role="img"
+     aria-label="A small bar chart">
+  <rect width="220" height="90" fill="none"/>
+  <g fill="#4c8bf5">
+    <rect x="10"  y="50" width="26" height="32"/>
+    <rect x="46"  y="26" width="26" height="56"/>
+    <rect x="82"  y="60" width="26" height="22"/>
+    <rect x="118" y="14" width="26" height="68"/>
+    <rect x="154" y="42" width="26" height="40"/>
+  </g>
+  <line x1="6" y1="82" x2="214" y2="82" stroke="currentColor" stroke-opacity="0.4"/>
+</svg>

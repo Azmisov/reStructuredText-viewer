@@ -44,6 +44,19 @@
   }
   setContext('rst-navigate', navigate);
 
+  // Where images resolve from. The base is a message from the host in VS Code,
+  // which has no server to fetch from; in a browser it is the media route.
+  let mediaBase = $state('/media/');
+  if (!browser) {
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'media-base' && event.data.base) mediaBase = event.data.base;
+    });
+  }
+  setContext('rst-media', {
+    get path() { return doc.path; },
+    get base() { return mediaBase; }
+  });
+
   /** Open a library-relative path directly, as the picker supplies it. */
   function openDocument(path) {
     doc.open(path);
