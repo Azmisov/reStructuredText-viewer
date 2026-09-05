@@ -383,18 +383,20 @@ blockquote:not(.epigraph):not(.pull-quote):not(.highlights) {
   position: relative;
   border: none;
   margin-inline: 0;
-  padding-inline-start: 2.6rem;
+  padding-inline-start: 3.1rem;
   color: color-mix(in srgb, var(--fg) 88%, var(--muted) 12%);
 }
 blockquote:not(.epigraph):not(.pull-quote):not(.highlights)::before {
   content: "\201C";
   position: absolute;
   inset-inline-start: 0;
-  top: -0.25em;
+  top: -0.18em;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 3.2rem;
+  font-size: 4rem;
   line-height: 1;
-  color: var(--border);
+  /* Same colour as the attribution below it, so the two pieces of furniture
+     around the quote read as one voice rather than two. */
+  color: var(--muted);
   /* Decoration, not content: keep it out of selections and screen readers. */
   user-select: none;
   -webkit-user-select: none;
