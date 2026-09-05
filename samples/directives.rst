@@ -262,25 +262,45 @@ displayed in. The directive parses without error, and nothing appears:
 Structure
 =========
 
-``sectnum`` numbers headings, ``contents`` builds the table at the top of this
-page, and ``include`` pulls in another file. ``class`` attaches a class to the
-next element:
+``sectnum`` numbers the headings on this page, ``contents`` builds the table at
+the top of it, and ``include`` pulls in another file.
 
-.. class:: highlighted
+``class`` attaches a class to the element that follows. What that class *does*
+is a question for the stylesheet, so the demonstration uses one docutils
+defines itself:
 
-This paragraph carries a class of its own.
+.. class:: align-center
 
-``default-role`` changes what single backticks mean, and ``role`` defines a new
-one:
+This paragraph is centred, because ``.. class:: align-center`` was written
+above it rather than because of anything in the paragraph.
 
-.. role:: custom-role
+``role`` defines a new inline role. A bare one only attaches a class, which
+again does nothing without a stylesheet; deriving it from an existing role
+gives it that role's rendering plus the class:
 
-Which then applies as :custom-role:`this`.
+.. role:: keyword(literal)
+.. role:: aside-note(emphasis)
+
+So :keyword:`derived from literal` is set as code and
+:aside-note:`derived from emphasis` is italic, while both still carry their own
+class for a stylesheet to find.
+
+``default-role`` changes what bare single backticks mean. Normally `this` is a
+title reference; between the two directives below it is a literal:
+
+.. default-role:: literal
+
+Here `single backticks` produce code instead.
+
+.. default-role::
+
+And here `they mean a title reference again`.
 
 ``target-notes`` turns external links into numbered footnotes, so a printed
-copy still carries its URLs. It only sees *named* targets - the ``.. _name:
-url`` form - and not URLs embedded directly in a link, which is why these two
-are written separately from the links that use them:
+copy still carries its URLs - note the ``[1]`` and ``[2]`` appended to the two
+links below, and the footnotes they point at. It only sees *named* targets,
+the ``.. _name: url`` form, which is why these are written separately from the
+links using them:
 
 Reading: docutils_ and its `specification <spec_>`_.
 

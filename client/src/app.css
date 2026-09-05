@@ -419,3 +419,13 @@ blockquote:not(.epigraph):not(.pull-quote):not(.highlights) cite {
   color: var(--muted);
   margin-top: 0.5rem;
 }
+
+
+/* --- docutils alignment classes ----------------------------------------- */
+/* `align-left`, `align-center` and `align-right` are docutils' own convention,
+   set by `:align:` on a directive or by `.. class::` on any element, and its
+   HTML writer honours them. Images already have their own margin rules above;
+   these cover text-bearing blocks. */
+p.align-left, div.align-left, blockquote.align-left { text-align: left; }
+p.align-center, div.align-center, blockquote.align-center { text-align: center; }
+p.align-right, div.align-right, blockquote.align-right { text-align: right; }
