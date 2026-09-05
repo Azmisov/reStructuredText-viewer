@@ -45,8 +45,10 @@
   setContext('rst-navigate', navigate);
 
   // Where images resolve from. The base is a message from the host in VS Code,
-  // which has no server to fetch from; in a browser it is the media route.
-  let mediaBase = $state('/media/');
+  // which has no server to fetch from; in a browser it is the media route,
+  // under whatever base the bundle was built for - `/` for the server, a
+  // project subpath for the Pages demo.
+  let mediaBase = $state(import.meta.env.BASE_URL + 'media/');
   if (!browser) {
     window.addEventListener('message', (event) => {
       if (event.data?.type === 'media-base' && event.data.base) mediaBase = event.data.base;
@@ -183,6 +185,8 @@
 {#if showPicker && browser}
   <FilePicker
     current={doc.path}
+    browse={doc.browse}
+    locate={doc.locate}
     onpick={openDocument}
     onclose={() => (showPicker = false)}
   />
@@ -247,6 +251,8 @@
   .right { display: flex; align-items: center; gap: 0.5rem; }
   .status[data-status='offline'] { color: var(--error); }
   .status[data-status='live'] { color: var(--ok); }
+  /* The demo is served, not watched: honest about it rather than claiming live. */
+  .status[data-status='demo'] { color: var(--muted); }
   .left button:not(.open) {
     background: none;
     border: 1px solid var(--border);

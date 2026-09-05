@@ -69,11 +69,24 @@ so the unused one is tree-shaken out.
   reopen-on-reconnect.
 - `transports/vscode.js` — `acquireVsCodeApi()` / `postMessage`; the extension
   host relays to the Python child.
+- `transports/static.js` — the published demo, replaying fixtures recorded from
+  `samples/` by `scripts/fixtures.py`. No server exists behind the Pages site,
+  so what it cannot have is the half a static host cannot serve: the watcher
+  pushing a new `doc` when a file changes. It reports its status as `demo`
+  rather than claiming to be live.
 
 ### Message vocabulary
 
-Inbound `open`, `list`, `source`; outbound `ready`, `doc`, `error`, `list`. It
-is identical over the WebSocket and over `--stdio`.
+Inbound `open`, `list`, `source`, `browse`, `locate`; outbound `ready`, `doc`,
+`error`, `list`, `browse`, `locate`. It is identical over the WebSocket and
+over `--stdio`.
+
+`browse` and `locate` are the only request/response pairs in an otherwise
+push-only protocol, so they carry an `id` the reply echoes. That is what keeps
+a refused lookup addressed to the dialog that asked for it instead of surfacing
+as the document pane's error, and it is why the file dialog works over any
+transport — including a webview and the fixture-backed demo, neither of which
+can reach an HTTP route.
 
 `source` renders supplied buffer text without reading disk, which is how an
 editor previews unsaved changes. Containment applies to it exactly as to `open`
@@ -94,6 +107,10 @@ never before — and `/api/browse`, `/api/locate` and `/media` apply the same
 check as document loading. Entries symlinked out of the tree are omitted from
 listings rather than listed and then refused.
 
+The HTTP routes are a parallel read-only surface rather than what the client
+uses: `/api/doc`, `/api/browse` and the rest exist for scripting and debugging,
+while the page itself speaks the message vocabulary over its transport.
+
 `/media` is the one widening: `resolve_asset` drops the reST suffix
 requirement, since an `.. image::` target is not a document, and keeps every
 other rule including the directory refusal. Widening *what* may be read must
@@ -107,5 +124,6 @@ not widen *where*.
 | `client/src/` | Svelte 5 client; `registry.js` maps node types to components |
 | `extension/` | VS Code extension over `--stdio`, with docutils vendored in |
 | `samples/` | sample documents; `directives.rst` exercises every docutils built-in |
+| `scripts/` | build tooling; `fixtures.py` records `samples/` for the demo |
 | `docs/` | these notes |
 | `tests/` | pytest suite |

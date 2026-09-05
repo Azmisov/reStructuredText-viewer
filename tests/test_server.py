@@ -282,3 +282,58 @@ def test_watcher_does_not_watch_the_whole_root(tmp_path, monkeypatch):
         f"the root itself was watched: {scheduled}"
     )
     assert str(tmp_path / "deep") in [path for path, _ in scheduled]
+
+
+def _answer(ws, request):
+    """Send a correlated request and read past any push that overtakes it.
+
+    Document pushes are asynchronous, so a watcher frame can land between the
+    request and its reply; the `id` is what tells them apart.
+    """
+    ws.send_json(request)
+    for _ in range(5):
+        message = ws.receive_json()
+        if message.get("id") == request["id"]:
+            return message
+    raise AssertionError(f"no reply to {request}")
+
+
+def test_browse_over_the_socket_answers_the_request_that_asked(client):
+    """The dialog runs over the transport, so it works wherever the client
+    does - including a webview and the fixture-backed demo, neither of which
+    can reach the HTTP routes."""
+    with connect(client, headers={"origin": ORIGIN}) as ws:
+        ws.receive_json()  # the entry document
+        reply = _answer(ws, {"type": "browse", "path": "", "id": 7})
+        assert reply["type"] == "browse" and reply["id"] == 7
+        assert {e["name"] for e in reply["entries"]} == {"sub", "doc.rst", "other.rst"}
+
+
+def test_browse_honours_the_filter_toggles(client, tmp_path):
+    (tmp_path / "notes.md").write_text("not rest")
+    with connect(client, headers={"origin": ORIGIN}) as ws:
+        ws.receive_json()
+        plain = _answer(ws, {"type": "browse", "path": "", "id": 1})
+        everything = _answer(ws, {"type": "browse", "path": "", "all": True, "id": 2})
+        assert "notes.md" not in {e["name"] for e in plain["entries"]}
+        assert "notes.md" in {e["name"] for e in everything["entries"]}
+
+
+def test_locate_over_the_socket_resolves_a_pasted_path(client, tmp_path):
+    with connect(client, headers={"origin": ORIGIN}) as ws:
+        ws.receive_json()
+        reply = _answer(
+            ws, {"type": "locate", "path": str(tmp_path / "sub" / "deep.rst"), "id": 3}
+        )
+        assert reply["type"] == "locate"
+        assert reply["path"] == "sub/deep.rst" and reply["kind"] == "doc"
+
+
+def test_a_refused_lookup_is_addressed_to_its_caller(client):
+    """Without the id the dialog's failure would surface as the document
+    pane's error, replacing whatever is on screen."""
+    with connect(client, headers={"origin": ORIGIN}) as ws:
+        ws.receive_json()
+        reply = _answer(ws, {"type": "locate", "path": "/etc/passwd", "id": 4})
+        assert reply["type"] == "error" and reply["id"] == 4
+        assert "outside the document root" in reply["message"]

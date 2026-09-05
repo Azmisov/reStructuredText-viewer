@@ -63,7 +63,11 @@ Milestones 1-6 are done and 9 is partly done; see
 
 ## Packaging and distribution
 
-- **Publish.** Nothing is on PyPI or the VS Code marketplace yet.
+- **Publish.** A version bump on `main` tags a release and attaches the wheel,
+  the sdist and the `.vsix`, so installing means downloading one. Neither index
+  is fed: PyPI wants trusted publishing configured against the project, and the
+  marketplace wants an Azure DevOps token in the repository's secrets. Both are
+  one job each on top of what `.github/workflows/ci.yml` already builds.
 - **Machines with no Python at all.** Bundling docutils dropped the
   requirement to "a Python 3.10+ exists", which is the 90% win. Closing the
   rest means frozen per-platform binaries (~15MB each, a per-platform `.vsix`,

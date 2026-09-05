@@ -1,0 +1,171 @@
+name: CI
+
+# One workflow rather than three, because a release *is* a CI run: the wheel
+# that ships is the wheel the tests ran against, not a later rebuild of it.
+# The publishing jobs are the same pipeline with their `if:` satisfied.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseding a pull request's run is free; superseding a release halfway
+  # through leaves a tag with nothing attached to it.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Install
+        # Not the `strict` extra: `readme_renderer` is declared for a
+        # `--pypi-strict` mode that does not exist yet.
+        run: uv pip install --system -e '.[test]'
+
+      - run: pytest
+
+  # The version in pyproject.toml is the release trigger. Bumping it is the
+  # deliberate act; every other commit to main just runs the tests and
+  # republishes the demo.
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      release: ${{ steps.read.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, which are how "already released" is decided
+
+      - id: read
+        run: |
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "v$version is already released; bump the version to cut a new one." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "v$version is new; this run will release it." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  package:
+    name: Wheel and extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - run: pnpm --dir client install --frozen-lockfile
+      - run: pnpm --dir extension install --frozen-lockfile
+
+      # Order matters: `src/rstview/client/` is build output, and hatchling
+      # packages whatever is on disk. Build the wheel first and it ships a
+      # server whose only response is "Client bundle not built".
+      - name: Build the client bundle
+        run: pnpm --dir client build
+
+      - name: Build the wheel and sdist
+        run: uv build
+
+      - name: Check the wheel actually contains the client
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile
+
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          if not any(n.endswith("rstview/client/index.html") for n in names):
+              sys.exit(f"{wheel} has no client bundle; it would serve a 503")
+          assets = [n for n in names if "/client/assets/" in n]
+          if not assets:
+              sys.exit(f"{wheel} has an index but no assets")
+          print(f"{wheel}: index.html + {len(assets)} assets")
+          PY
+
+      # Vendors docutils, builds the webview bundle, compiles the host, packs.
+      - name: Package the extension
+        run: pnpm --dir extension run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            extension/*.vsix
+          if-no-files-found: error
+
+  demo:
+    name: Demo site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - run: uv pip install --system -e .
+      - run: pnpm --dir client install --frozen-lockfile
+
+      # The demo has no server, so the responses one would give for samples/
+      # are recorded now and replayed by the static transport.
+      - name: Record the fixtures
+        run: python scripts/fixtures.py --out demo/data
+
+      - name: Build the site
+        # Pages serves a project repository from a subpath, and a fork is
+        # served from its own name.
+        run: DEMO_BASE=/${{ github.event.repository.name }}/ pnpm --dir client build:demo
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo/dist
+
+  release:
+    name: Release
+    if: github.event_name == 'push' && needs.version.outputs.release == 'true'
+    needs: [test, version, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the tag and the release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: artifacts
+
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --generate-notes \
+            --target "$GITHUB_SHA" \
+            artifacts/dist/* artifacts/extension/*.vsix
+
+  publish-demo:
+    name: Publish demo
+    if: github.event_name == 'push'
+    needs: [test, demo]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

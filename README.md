@@ -4,6 +4,11 @@ Live-reloading reStructuredText previewer. Edit a `.rst` file, see it update in
 the browser — without losing your scroll position, your settings, or the state
 of anything on the page.
 
+**[Try it](https://azmisov.github.io/reStructuredText-viewer/)** — the sample
+corpus, rendered by the real client against recorded server responses. Reading,
+navigation, settings and the file dialog all work; only live reloading is
+missing, since nothing is watching a file.
+
 ```sh
 uv venv && uv pip install -e .
 pnpm --dir client install && pnpm --dir client build
@@ -124,15 +129,30 @@ and a right-to-left document. `samples/directives.rst` exercises every
 directive docutils ships with, which is also what `tests/test_coverage.py`
 checks the renderer against.
 
+It is also what the published demo shows. `scripts/fixtures.py` records what a
+real session would answer for these documents, and the demo's transport replays
+that, so the demo renders through the same code the app does and cannot drift
+from it.
+
 ## Develop
 
 ```sh
 uv pip install -e ".[test]" && pytest
-pnpm --dir client build
+pnpm --dir client build              # the bundle the server serves
+pnpm --dir extension run package     # vendored docutils + webview bundle + .vsix
+python scripts/fixtures.py --out demo/data && \
+  DEMO_BASE=/ pnpm --dir client build:demo   # the static demo, in demo/dist
 ```
 
 `rstview --dev` additionally starts Vite on `--port + 1` and opens that, so
 editing a `.svelte` file hot-reloads without losing the open document.
+
+### Releasing
+
+Pushing to `main` runs the tests and republishes the demo. It also cuts a
+release — tag, wheel, sdist and `.vsix` — but only when the version in
+`pyproject.toml` has no tag yet, so bumping it is the act that ships. Bump
+`extension/package.json` to match; a test fails if they disagree.
 
 ## License
 

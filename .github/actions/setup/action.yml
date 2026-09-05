@@ -1,0 +1,27 @@
+name: Toolchain
+description: Python, Node and pnpm, pinned to what the project is developed against.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 11
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+        # Both trees are installed by one job or another; caching either alone
+        # would leave the other downloading everything on every run.
+        cache-dependency-path: |
+          client/pnpm-lock.yaml
+          extension/pnpm-lock.yaml

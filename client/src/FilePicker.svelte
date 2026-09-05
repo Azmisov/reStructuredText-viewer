@@ -4,10 +4,14 @@
    *  The browser cannot give a real path (`<input type=file>` hides it, and
    *  OPFS is a sandbox with no relation to the user's files), so browsing
    *  happens server-side where the path and its containment rules already live.
+   *
+   *  `browse` and `locate` come in as props rather than being fetched here:
+   *  they go over whichever transport the connection holds, so the dialog works
+   *  the same against a socket, an editor host, or the demo's fixtures.
    */
   import { untrack } from 'svelte';
 
-  let { current = null, onpick, onclose } = $props();
+  let { current = null, browse, locate, onpick, onclose } = $props();
 
   // Opens in the current document's folder. Deliberately the initial value
   // only: the dialog is remounted each time it opens, and after that the user
@@ -53,15 +57,8 @@
   async function load(path) {
     loading = true;
     error = null;
-    const query = new URLSearchParams({
-      path,
-      hidden: showHidden ? '1' : '0',
-      all: showAll ? '1' : '0'
-    });
     try {
-      const response = await fetch(`/api/browse?${query}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? 'cannot read directory');
+      const data = await browse(path, { hidden: showHidden, all: showAll });
       dir = data.path;
       parent = data.parent;
       entries = data.entries;
@@ -108,9 +105,7 @@
     if (!text) return;
     error = null;
     try {
-      const response = await fetch(`/api/locate?path=${encodeURIComponent(text)}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? 'cannot resolve path');
+      const data = await locate(text);
       if (data.kind === 'dir') {
         pasted = '';
         load(data.path);
