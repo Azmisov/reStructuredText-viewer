@@ -113,8 +113,9 @@ outline are client changes rather than docutils translator subclasses, and
 partial updates fall out for free because every node carries a stable id.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the AST contract and how
-those ids are assigned, and [docs/DECISIONS.md](docs/DECISIONS.md) for why the
-less obvious parts are the way they are.
+those ids are assigned, [docs/DECISIONS.md](docs/DECISIONS.md) for why the
+less obvious parts are the way they are, and [docs/TODO.md](docs/TODO.md) for
+what is left.
 
 ## Samples
 
