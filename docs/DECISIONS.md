@@ -148,6 +148,36 @@ The table caption is styled as a banner row above the column headers - same
 fill and padding as `th`, no bottom border - because a caption floating above
 a bordered table reads as a stray paragraph rather than as part of it.
 
+## The watcher follows documents, not the root
+
+Watching the root recursively looks like the simple choice and is wrong as
+soon as the root is broad. The default root on a loopback bind is the entire
+filesystem, and `rstview file.rst` with no `--root` therefore tried to watch
+all of it:
+
+    OSError: [Errno 28] inotify watch limit reached
+    ERROR:    Application startup failed. Exiting.
+
+The default invocation did not start at all. Watches are now added per
+document, non-recursively, as each is first opened - `Library.on_load` is the
+hook - so the set grows with what the reader has looked at rather than with
+the size of the root.
+
+It watches each document's *directory* rather than the file: editors save by
+writing a temporary file and renaming it over the original, which replaces the
+inode and leaves a watch on the file itself pointing at nothing.
+
+`test_watcher_does_not_watch_the_whole_root` fails if a recursive watch comes
+back.
+
+## `parsed-literal` is not a code block
+
+Both are `literal_block`. A code block holds a single run of text; a parsed
+literal holds `strong`, `emphasis` and `reference` children, because parsing
+the inline markup is the entire point of the directive. Highlighting flattens
+children to a string, so the client checks for element children and renders
+them instead - highlighting is only for blocks that are nothing but text.
+
 ## Bordered blocks are block formatting contexts
 
 A float shortens the *line boxes* beside it, but a neighbouring block's own

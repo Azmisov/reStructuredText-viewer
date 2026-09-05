@@ -240,3 +240,45 @@ def test_media_route_serves_assets_and_holds_the_boundary(tmp_path):
         assert client.get("/media/pic.svg").status_code == 200
         assert client.get("/media/../secret.txt").status_code == 404
         assert client.get("/media/nope.png").status_code == 404
+
+
+def test_watcher_does_not_watch_the_whole_root(tmp_path, monkeypatch):
+    """The default root on a loopback bind is the entire filesystem.
+
+    A recursive watch of that exhausts the inotify limit and the server never
+    finishes starting, so watches follow the documents that are actually
+    opened instead.
+    """
+    from rstview import watch
+
+    scheduled = []
+
+    class Recorder:
+        def schedule(self, handler, path, recursive=False):
+            scheduled.append((path, recursive))
+            return object()
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+        def join(self, timeout=None):
+            pass
+
+    monkeypatch.setattr(watch, "Observer", Recorder)
+
+    (tmp_path / "deep").mkdir()
+    (tmp_path / "deep" / "doc.rst").write_text("Title\n=====\n")
+
+    app = create_app(str(tmp_path / "deep" / "doc.rst"), root=str(tmp_path))
+    with TestClient(app):
+        pass
+
+    assert scheduled, "nothing was watched at all"
+    assert not any(recursive for _, recursive in scheduled), scheduled
+    assert str(tmp_path) not in [path for path, _ in scheduled], (
+        f"the root itself was watched: {scheduled}"
+    )
+    assert str(tmp_path / "deep") in [path for path, _ in scheduled]

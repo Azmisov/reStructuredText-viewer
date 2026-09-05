@@ -64,6 +64,9 @@ class Library:
         self.root = os.path.realpath(root)
         self.config = config
         self._documents = {}
+        # Set by whatever is watching the filesystem, if anything is: called
+        # with the absolute path of each document the first time it is opened.
+        self.on_load = None
 
     def _within(self, real):
         """True if an already-realpath'd path is at or under the root.
@@ -230,6 +233,10 @@ class Library:
             document = Document(key, abspath)
             self._documents[key] = document
             self.reload(document)
+            # Whoever is watching learns about a document when it is first
+            # opened; nothing else knows the set of files worth watching.
+            if self.on_load is not None:
+                self.on_load(abspath)
         return document
 
     def find(self, abspath):

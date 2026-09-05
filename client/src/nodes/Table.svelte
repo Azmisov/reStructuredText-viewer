@@ -30,8 +30,10 @@
     caption-side: top;
     text-align: left;
     font-weight: 600;
-    font-size: 0.92em;
-    color: var(--fg);
+    /* The table itself is 0.92em; the caption steps back up so it reads as
+       the label of the block rather than as another cell. */
+    font-size: 1.05em;
+    color: var(--fg-strong);
     background: var(--code-bg);
     border: 1px solid var(--border);
     border-bottom: none;

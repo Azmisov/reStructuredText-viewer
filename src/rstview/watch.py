@@ -1,4 +1,11 @@
-"""Recursive file watching with debounce, bridged from watchdog to the loop."""
+"""File watching with debounce, bridged from watchdog to the event loop.
+
+Watches the directories that actually hold open documents, one at a time and
+never recursively. Watching the root instead looks simpler and is wrong as
+soon as the root is broad: the default root on a loopback bind is the whole
+filesystem, and a recursive watch of that exhausts the inotify watch limit and
+takes the server down before it finishes starting.
+"""
 import asyncio
 import os
 
@@ -58,6 +65,8 @@ class Watcher:
         self.loop = loop or asyncio.get_event_loop()
         self.observer = Observer()
         self._timers = {}
+        self._handler = _Handler(self._notify, self.extra)
+        self._watched = {}
 
     def _fire(self, path):
         # Coalesce bursts per path: one save can emit several events.
@@ -75,13 +84,33 @@ class Watcher:
     def _notify(self, path):
         self.loop.call_soon_threadsafe(self._fire, path)
 
+    def watch(self, path):
+        """Start watching the directory holding `path`, if not already.
+
+        Called as documents are opened, so the set of watches grows with what
+        the reader has actually looked at rather than with the size of the
+        root. Idempotent; safe before or after `start`.
+        """
+        if not path:
+            return
+        directory = os.path.dirname(os.path.realpath(path))
+        if not directory or directory in self._watched or not os.path.isdir(directory):
+            return
+        try:
+            self._watched[directory] = self.observer.schedule(
+                self._handler, directory, recursive=False
+            )
+        except OSError:
+            # Out of inotify watches, or the directory vanished between the
+            # check and the call. A preview that cannot auto-refresh is worth
+            # more than one that will not start.
+            pass
+
     def start(self):
-        handler = _Handler(self._notify, self.extra)
-        self.observer.schedule(handler, self.root, recursive=True)
-        for directory in {os.path.dirname(p) for p in self.extra}:
-            if directory and not directory.startswith(self.root):
-                self.observer.schedule(handler, directory, recursive=False)
         self.observer.start()
+        # The component config is not a document, so nothing will open it.
+        for path in self.extra:
+            self.watch(path)
 
     def stop(self):
         for timer in self._timers.values():

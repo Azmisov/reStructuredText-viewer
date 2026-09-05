@@ -78,6 +78,15 @@ Body elements
 
 .. rubric:: A rubric is an unnumbered heading
 
+A plain block quote is just an indented block, with no directive at all:
+
+..
+
+   Any indented block that follows a paragraph is a quotation, and needs no
+   markup beyond the indentation itself.
+
+   -- The specification, more or less
+
 .. epigraph::
 
    An epigraph is a block quote with a class.

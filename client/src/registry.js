@@ -131,7 +131,8 @@ export const TYPE_CLASS = {
   // A line block expresses indentation by *nesting* another line_block, so
   // both levels need a hook or there is nothing for the indent to hang on.
   line_block: 'rst-line-block',
-  line: 'rst-line'
+  line: 'rst-line',
+  rubric: 'rst-rubric'
 };
 
 /** Block-level text containers, which need their own base direction so a

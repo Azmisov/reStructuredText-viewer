@@ -102,3 +102,21 @@ def test_load_config_reads_the_components_block(tmp_path):
     path = tmp_path / "c.json"
     path.write_text(json.dumps({"components": CONFIG}))
     assert set(load_config(str(path))) == {"chart", "callout"}
+
+
+def test_parsed_literal_keeps_its_inline_markup():
+    """The whole point of `parsed-literal` is that the markup survives.
+
+    It arrives as a `literal_block` with element children rather than one text
+    node, which is what the client keys off to skip highlighting - flattening
+    it to a string for the highlighter would throw the markup away.
+    """
+    ast = parse(".. parsed-literal::\n\n   plain **bold** and *italic*\n")
+    block = ast["children"][0]
+    assert block["type"] == "literal_block"
+    kinds = [child["type"] for child in block["children"]]
+    assert "strong" in kinds and "emphasis" in kinds
+    # A highlighted code block, by contrast, is a single run of text.
+    code = parse(".. code-block:: python\n\n   x = 1\n")["children"][0]
+    assert [child["type"] for child in code["children"]] == ["text"]
+    assert "code" in code["props"]["classes"]

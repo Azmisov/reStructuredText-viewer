@@ -25,7 +25,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/ws': { target: `ws://localhost:${api}`, ws: true },
-      '/api': `http://localhost:${api}`
+      '/api': `http://localhost:${api}`,
+      // Images a document points at. Without this every `.. image::` 404s
+      // under `--dev` while working fine in the built client.
+      '/media': `http://localhost:${api}`
     }
   }
 });

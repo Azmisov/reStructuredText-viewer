@@ -18,6 +18,9 @@ body.vscode-high-contrast,
 body.vscode-high-contrast-light {
   --bg: var(--vscode-editor-background, #fbfbfa);
   --fg: var(--vscode-editor-foreground, #1f2328);
+  /* One step past the editor foreground, in whichever direction the theme
+     runs; the per-kind blocks below decide which. */
+  --fg-strong: var(--fg);
   --muted: var(--vscode-descriptionForeground, #6b7280);
   /* --border is set per theme kind below, not from a theme variable.
      `panel.border` separates large workbench surfaces and is tuned to be
@@ -56,13 +59,17 @@ body.vscode-high-contrast-light .bar {
    visible; where it exists it wins. */
 body.vscode-dark {
   --border: color-mix(in srgb, var(--bg) 70%, #fff 30%);
+  --fg-strong: color-mix(in srgb, var(--fg) 65%, #fff 35%);
 }
 body.vscode-light {
   --border: color-mix(in srgb, var(--bg) 78%, #000 22%);
+  --fg-strong: color-mix(in srgb, var(--fg) 70%, #000 30%);
 }
 body.vscode-high-contrast {
   --border: var(--vscode-contrastBorder, color-mix(in srgb, var(--bg) 55%, #fff 45%));
+  --fg-strong: #fff;
 }
 body.vscode-high-contrast-light {
   --border: var(--vscode-contrastBorder, color-mix(in srgb, var(--bg) 60%, #000 40%));
+  --fg-strong: #000;
 }

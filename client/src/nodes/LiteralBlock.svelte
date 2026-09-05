@@ -1,5 +1,6 @@
 <script>
   import { getContext } from 'svelte';
+  import Node from '../Node.svelte';
   import { highlight } from '../highlight.svelte.js';
   import { HOST_THEME } from '../hostTheme.svelte.js';
 
@@ -18,6 +19,13 @@
 
   const language = $derived(node.props.classes?.find((c) => c !== 'code'));
   const text = $derived(collect(node));
+
+  /** `.. parsed-literal::` is a literal block whose *inline markup is parsed*,
+   *  so it arrives with `strong`, `emphasis` and `reference` children. Running
+   *  it through the highlighter would flatten all of that back to text, which
+   *  is the one thing the directive exists to prevent. Highlighting is for
+   *  blocks that are only text. */
+  const parsed = $derived((node.children ?? []).some((c) => c.type !== 'text'));
 
   // Re-runs when the chosen syntax themes change; light/dark switching alone
   // needs no re-highlight, since both palettes are in the output already.
@@ -64,6 +72,9 @@
   }
 </script>
 
+{#if parsed}
+  <pre class="rst-literal-block parsed" dir="ltr"><code>{#each node.children ?? [] as child (child.id)}<Node node={child} />{/each}</code></pre>
+{:else}
 {#await rendered}
   <pre class="rst-literal-block"><code>{text}</code></pre>
 {:then html}
@@ -86,8 +97,14 @@
 {:catch}
   <pre class="rst-literal-block"><code>{text}</code></pre>
 {/await}
+{/if}
 
 <style>
+  /* Emphasis inside a parsed literal has to survive `pre`'s monospace: the
+     markup is the content here, not decoration. */
+  .parsed :global(strong) { font-weight: 700; }
+  .parsed :global(em) { font-style: italic; }
+
   .hl {
     position: relative;
     margin-block: var(--block-gap);

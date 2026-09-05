@@ -136,6 +136,11 @@ def create_app(path=None, allowed_origins=None, config=None, root=None):
     @contextlib.asynccontextmanager
     async def lifespan(app):
         watcher = Watcher(root, on_change, extra=[config] if config else None)
+        # Documents opened later - a cross-document link, the file dialog -
+        # each add their own directory as they load.
+        library.on_load = watcher.watch
+        for document in library.documents:
+            watcher.watch(document.abspath)
         watcher.start()
         try:
             yield

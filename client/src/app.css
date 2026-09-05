@@ -9,6 +9,9 @@
   --bar-bg: #ffffffcc;
   --code-bg: #f4f4f2;
   --link: #0b62d0;
+  /* One step further from the background than --fg, for the few things that
+     should out-weigh body copy: a table's caption, a rubric. */
+  --fg-strong: #000000;
   --error: #b42318;
   --error-bg: #fef3f2;
   --warn: #b45309;
@@ -35,6 +38,7 @@
     --bar-bg: #1b1e23cc;
     --code-bg: #1f2329;
     --link: #6fb0ff;
+    --fg-strong: #ffffff;
     --error: #f97066;
     --error-bg: #2a1615;
     --warn: #f0a92e;
@@ -50,6 +54,7 @@
   --bar-bg: #1b1e23cc;
   --code-bg: #1f2329;
   --link: #6fb0ff;
+  --fg-strong: #ffffff;
   --error: #f97066;
   --error-bg: #2a1615;
   --warn: #f0a92e;
@@ -354,4 +359,53 @@ pre,
 .rst-literal-block,
 .rst-compound {
   display: flow-root;
+}
+
+
+/* --- Rubric ------------------------------------------------------------- */
+/* A rubric is a heading that takes no place in the hierarchy: it is not
+   numbered by sectnum and never enters the outline, but it is a heading and
+   should read as one rather than as a stray bold paragraph. */
+.rst-rubric {
+  font-weight: 600;
+  font-size: 1.05em;
+  line-height: 1.3;
+  color: var(--fg-strong);
+  margin-block: calc(var(--block-gap) * 1.5) var(--block-gap);
+}
+
+/* --- Block quotes ------------------------------------------------------- */
+/* A plain quote gets a quotation mark rather than the accent bar that
+   admonitions and highlights use - the bar is how this viewer says "callout",
+   and a quote is not one. epigraph, pull-quote and highlights keep their own
+   treatments above. */
+blockquote:not(.epigraph):not(.pull-quote):not(.highlights) {
+  position: relative;
+  border: none;
+  margin-inline: 0;
+  padding-inline-start: 2.6rem;
+  color: color-mix(in srgb, var(--fg) 88%, var(--muted) 12%);
+}
+blockquote:not(.epigraph):not(.pull-quote):not(.highlights)::before {
+  content: "\201C";
+  position: absolute;
+  inset-inline-start: 0;
+  top: -0.25em;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3.2rem;
+  line-height: 1;
+  color: var(--border);
+  /* Decoration, not content: keep it out of selections and screen readers. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+blockquote:not(.epigraph):not(.pull-quote):not(.highlights) > :first-child { margin-top: 0; }
+blockquote:not(.epigraph):not(.pull-quote):not(.highlights) > :last-child { margin-bottom: 0; }
+/* The attribution under a quote is a credit, not another line of it. */
+blockquote:not(.epigraph):not(.pull-quote):not(.highlights) cite {
+  display: block;
+  font-size: 0.85em;
+  font-style: normal;
+  color: var(--muted);
+  margin-top: 0.5rem;
 }
