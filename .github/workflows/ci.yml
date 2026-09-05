@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+        with:
+          node: 'false' # pytest alone; nothing here builds the client
 
       - name: Install
         # Not the `strict` extra: `readme_renderer` is declared for a
