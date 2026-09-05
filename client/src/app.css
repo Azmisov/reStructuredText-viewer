@@ -288,21 +288,20 @@ blockquote.pull-quote {
   padding-block: 1rem;
   margin-block: calc(var(--block-gap) * 1.5);
 }
-/* A lede, not a callout.
-   A tinted panel behind a coloured left bar is this viewer's callout
-   vocabulary - admonitions, and a tip in particular, look exactly like that -
-   so highlights borrows none of it. It is set as a summary paragraph instead:
-   larger and looser than body copy, inset symmetrically on both sides, with no
-   fill, no border and no accent. The symmetry is what tells it apart at a
-   glance from everything that hangs off a left rule. */
+/* A boxed summary, tinted and dashed.
+   Close to a topic - both are set-aside boxes - but told apart by the dashes
+   and the tint: a topic is a solid neutral box, an admonition is a fill behind
+   a coloured left bar, and this is neither. The colour is the same green the
+   tip and hint admonitions use, since the meaning is adjacent, but the dashed
+   outline keeps the two from being mistaken for one another. */
 blockquote.highlights {
-  border: none;
-  background: none;
-  padding: 0 1.6rem;
-  margin-block: calc(var(--block-gap) * 1.5);
+  border: 1px dashed color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+  border-radius: 6px;
+  padding: 0.85rem 1.1rem;
+  margin-block: calc(var(--block-gap) * 1.25);
   margin-inline: 0;
-  font-size: 1.1em;
-  line-height: 1.55;
+  font-size: 1em;
   color: var(--fg);
 }
 blockquote.epigraph > :last-child,

@@ -188,10 +188,10 @@ bar". `highlights` had converged exactly onto a tip admonition.
 A tinted fill behind a left accent is this viewer's *callout* vocabulary.
 Everything else avoids it and takes a different axis: an epigraph is italic
 behind a left rule, a pull-quote is centred between two rules, a plain quote
-hangs off a large quotation mark, and highlights is set as a lede - larger and
-looser, inset symmetrically, with no fill, border or accent at all. The
-symmetry is what separates it at a glance from anything hanging off a left
-rule.
+hangs off a large quotation mark, and highlights is a boxed summary - dashed
+outline, faint tint, in the same green the tip and hint admonitions use, since
+the meaning is adjacent. A topic is the other boxed thing, and the dashes and
+the tint are what keep the two apart.
 
 ## Bordered blocks are block formatting contexts
 
