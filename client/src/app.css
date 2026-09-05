@@ -229,3 +229,111 @@ pre,
   /* Nothing scrolls horizontally now, so sticky has no work to do. */
   position: static;
 }
+
+
+/* --- Figures ------------------------------------------------------------ */
+figure {
+  /* Sized to the image rather than the column, so a centred figure centres
+     the picture and not an invisible full-width box. */
+  width: fit-content;
+  max-width: 100%;
+}
+figure figcaption {
+  font-size: 0.88em;
+  font-style: italic;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+/* The legend is body copy that happens to sit under a figure; it should not
+   inherit the caption's voice. */
+figure .rst-legend {
+  font-size: 0.92em;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+figure .rst-legend > :first-child { margin-top: 0; }
+img.align-center, figure.align-center { margin-inline: auto; }
+img.align-right, figure.align-right { margin-inline-start: auto; }
+
+/* --- Quote-like block quotes -------------------------------------------- */
+/* docutils renders epigraph, highlights and pull-quote as a block_quote with
+   a class, so they arrive here indistinguishable from an ordinary quote until
+   the class is read. */
+blockquote.epigraph,
+blockquote.pull-quote {
+  border: none;
+  padding: 0;
+  margin-inline: 0;
+  font-size: 1.15em;
+  line-height: 1.45;
+  color: var(--fg);
+}
+blockquote.epigraph {
+  font-style: italic;
+  border-inline-start: 3px solid var(--link);
+  padding-inline-start: 1.1rem;
+}
+/* A pull-quote is lifted out of the flow: centred, larger, with rules above
+   and below rather than down one side. */
+blockquote.pull-quote {
+  text-align: center;
+  font-weight: 500;
+  border-block: 1px solid var(--border);
+  padding-block: 1rem;
+  margin-block: calc(var(--block-gap) * 1.5);
+}
+blockquote.highlights {
+  border: none;
+  background: color-mix(in srgb, var(--code-bg) 70%, transparent);
+  border-inline-start: 3px solid var(--ok);
+  padding: 0.8rem 1rem;
+  margin-inline: 0;
+  font-size: 0.96em;
+}
+blockquote.epigraph > :last-child,
+blockquote.pull-quote > :last-child,
+blockquote.highlights > :last-child { margin-bottom: 0; }
+blockquote.epigraph > :first-child,
+blockquote.pull-quote > :first-child,
+blockquote.highlights > :first-child { margin-top: 0; }
+/* The attribution under an epigraph is a credit, not part of the quote. */
+blockquote.epigraph cite,
+blockquote.pull-quote cite {
+  display: block;
+  font-size: 0.8em;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 0.6rem;
+}
+
+/* --- Compound paragraphs ------------------------------------------------ */
+/* A compound is one logical paragraph interrupted by something block-level.
+   Its parts must not read as separate paragraphs, so the gaps between them
+   close up and continuations are indented the way a broken paragraph is. */
+.rst-compound > p { margin-block: 0; }
+.rst-compound > p + p { text-indent: 1.5em; }
+.rst-compound > :not(p) { margin-block: calc(var(--block-gap) * 0.75); }
+
+/* --- Section numbers ---------------------------------------------------- */
+/* `.. sectnum::` emits the number as a generated span inside the heading;
+   docutils separates it from the text with non-breaking spaces already. */
+.sectnum {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* --- Line blocks -------------------------------------------------------- */
+/* docutils encodes each level of indentation as a nested line_block rather
+   than as a property of the line, so the indent is applied to the nesting and
+   compounds naturally for deeper levels. */
+.rst-line-block .rst-line-block {
+  margin-inline-start: 1.6em;
+}
+/* A blank line inside a line block is a `line` with no content, which would
+   otherwise collapse to nothing and lose the stanza break the author wrote. */
+.rst-line:empty::before {
+  content: "\00a0";
+}

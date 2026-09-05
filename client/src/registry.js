@@ -13,6 +13,9 @@ import Footnote from './nodes/Footnote.svelte';
 import FootnoteReference from './nodes/FootnoteReference.svelte';
 import Math from './nodes/Math.svelte';
 import MathBlock from './nodes/MathBlock.svelte';
+import Document from './nodes/Document.svelte';
+import Table from './nodes/Table.svelte';
+import Aside from './nodes/Aside.svelte';
 import Unknown from './nodes/Unknown.svelte';
 
 /** docutils types that map cleanly onto a single HTML element. */
@@ -44,6 +47,8 @@ export const SIMPLE = {
   line_block: 'div',
   line: 'div',
   inline: 'span',
+  // `.. sectnum::` puts the number in a `generated` node inside the title.
+  generated: 'span',
   container: 'div',
   compound: 'div',
   // `.. header::` / `.. footer::` are page decoration meant for print output.
@@ -53,11 +58,8 @@ export const SIMPLE = {
   // mean the renderer reaching outside its own subtree.
   header: 'div',
   footer: 'div',
-  topic: 'aside',
-  sidebar: 'aside',
   rubric: 'p',
   doctest_block: 'pre',
-  table: 'table',
   tbody: 'tbody',
   row: 'tr',
   caption: 'figcaption',
@@ -68,7 +70,11 @@ export const SIMPLE = {
 
 /** Types needing real structure or behaviour get a component. */
 export const COMPONENTS = {
+  document: Document,
   section: Section,
+  table: Table,
+  topic: Aside,
+  sidebar: Aside,
   title: Title,
   subtitle: Title,
   reference: Reference,
@@ -99,7 +105,7 @@ export const COMPONENTS = {
 
 /** Rendered as their children, with no wrapper element of their own. */
 export const TRANSPARENT = new Set([
-  'document', 'tgroup', 'description', 'option_group', 'decoration'
+  'tgroup', 'description', 'option_group', 'decoration'
 ]);
 
 /** Present in the doctree but with nothing to show. */
@@ -111,6 +117,22 @@ export const HIDDEN = new Set([
   'meta',
   'raw'
 ]);
+
+/** Types that need a class hook for styling but get none from docutils.
+ *
+ *  `epigraph`, `pull-quote` and `highlights` arrive with their class already
+ *  set - they are all `block_quote` and would be indistinguishable otherwise -
+ *  but `legend` and `compound` are their own node types carrying nothing, so
+ *  the type has to become the hook. Only the ones CSS actually targets are
+ *  listed; tagging every paragraph would be DOM weight for nothing. */
+export const TYPE_CLASS = {
+  legend: 'rst-legend',
+  compound: 'rst-compound',
+  // A line block expresses indentation by *nesting* another line_block, so
+  // both levels need a hook or there is nothing for the indent to hang on.
+  line_block: 'rst-line-block',
+  line: 'rst-line'
+};
 
 /** Block-level text containers, which need their own base direction so a
  *  mixed-language document resolves each block independently. */

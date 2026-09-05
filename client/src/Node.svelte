@@ -1,5 +1,7 @@
 <script>
-  import { SIMPLE, COMPONENTS, TRANSPARENT, HIDDEN, AUTO_DIR, Unknown } from './registry.js';
+  import {
+    SIMPLE, COMPONENTS, TRANSPARENT, HIDDEN, AUTO_DIR, TYPE_CLASS, Unknown
+  } from './registry.js';
   import Node from './Node.svelte';
 
   /** Recursive dispatch on node.type. Keyed {#each} on the server's stable
@@ -9,6 +11,9 @@
 
   const Component = $derived(COMPONENTS[node.type]);
   const tag = $derived(SIMPLE[node.type]);
+  const classes = $derived(
+    [TYPE_CLASS[node.type], ...(node.props?.classes ?? [])].filter(Boolean).join(' ')
+  );
 </script>
 
 {#if node.type === 'text'}{node.value}{:else if HIDDEN.has(node.type)}{:else if Component}
@@ -17,7 +22,7 @@
   <svelte:element
     this={tag}
     id={node.props?.ids?.[0]}
-    class={node.props?.classes?.join(' ')}
+    class={classes || undefined}
     dir={AUTO_DIR.has(node.type) ? 'auto' : undefined}
   >
     {#each node.children ?? [] as child (child.id)}

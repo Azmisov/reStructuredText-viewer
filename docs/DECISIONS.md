@@ -136,6 +136,34 @@ This is what keeps the editor's dependency floor at "an interpreter with
 docutils", which matters for any future attempt to bundle rather than ask the
 user to install.
 
+## A title is only a heading inside a section
+
+`table`, `topic`, `sidebar` and the generic `admonition` all carry a `title`
+child, and routing it through the ordinary `title` mapping made it an
+`<h1>`-`<h6>` sized by section depth. In a table that heading landed *inside*
+the element and split it in two. Each of those types now renders its own
+title: a `<caption>` for a table, a plain label for the rest.
+
+The table caption is styled as a banner row above the column headers - same
+fill and padding as `th`, no bottom border - because a caption floating above
+a bordered table reads as a stray paragraph rather than as part of it.
+
+## docutils hides some structure in nesting, not in attributes
+
+Three cases where the obvious CSS target does not exist:
+
+- **`decoration`** holds `.. header::` and `.. footer::` and sits *first* in
+  the doctree, so rendering children in order puts the page footer above the
+  title. `Document.svelte` splits it out and puts each end where it belongs.
+- **A line block's indentation** is a nested `line_block`, not a property of
+  the line - so the indent hangs on the nesting and compounds for free. A
+  blank line is a `line` with no content, which needs `::before { "\00a0" }`
+  or the stanza break collapses.
+- **`legend` and `compound` carry no classes at all**, unlike `epigraph`,
+  `pull-quote` and `highlights`, which are all `block_quote` and would be
+  indistinguishable without one. `TYPE_CLASS` supplies a hook for the few
+  types CSS targets; tagging every paragraph would be DOM weight for nothing.
+
 ## `raw` is parsed and then dropped
 
 `.. raw:: html` is the one directive deliberately not rendered. The client

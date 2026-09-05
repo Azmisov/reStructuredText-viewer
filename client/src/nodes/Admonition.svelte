@@ -13,7 +13,12 @@
   {#if !hasTitle && label}<header>{label}</header>{/if}
   {#each node.children ?? [] as child (child.id)}
     {#if child.type === 'title'}
-      <header><Node node={child} /></header>
+      <!-- The title's *children*, not the title node: routing it through the
+           `title` mapping would emit a section-sized heading inside the box
+           and put the admonition in the document outline. -->
+      <header>
+        {#each child.children ?? [] as part (part.id)}<Node node={part} />{/each}
+      </header>
     {:else}
       <Node node={child} />
     {/if}

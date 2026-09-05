@@ -5,9 +5,15 @@ Directives
 Every directive docutils ships with, so the renderer's coverage is visible
 rather than assumed. Back to the `overview <index.rst>`_.
 
+.. sectnum::
+
 .. contents:: On this page
    :depth: 1
    :local:
+
+The headings on this page are numbered by ``sectnum``, which is the directive
+demonstrating itself - it applies to the whole document, so there is nowhere
+to show it in isolation.
 
 Admonitions
 ===========
@@ -86,13 +92,19 @@ Body elements
 
    A pull-quote lifts a phrase out of the body.
 
+A ``compound`` is one paragraph interrupted by something block-level, rather
+than several paragraphs in a row. The parts run together instead of being
+separated, and continuations are indented the way a broken paragraph is:
+
 .. compound::
 
-   A compound paragraph joins several paragraphs into one logical block,
+   The processing system will produce the following files:
 
-   so that a directive or list can sit in the middle of a sentence
+   * ``report.pdf``
+   * ``report.html``
 
-   without ending it.
+   depending on the options given, and will leave them in the output directory
+   named on the command line.
 
 .. container:: custom-class
 
@@ -180,9 +192,13 @@ you annotate a listing:
 
 .. line-block::
 
-   Line breaks matter here,
-       and so does indentation,
-   but words still wrap normally.
+   Line breaks are preserved exactly as written,
+       and each level of indentation nests,
+           compounding as it goes,
+
+   while a blank line keeps the stanza break,
+   and a line long enough to reach the edge of the column still wraps like any
+   other paragraph would.
 
 Maths
 =====
@@ -252,8 +268,19 @@ one:
 
 Which then applies as :custom-role:`this`.
 
-A ``target-notes`` directive turns every external link into a footnote. A
-transition is four or more punctuation characters on their own line:
+``target-notes`` turns external links into numbered footnotes, so a printed
+copy still carries its URLs. It only sees *named* targets - the ``.. _name:
+url`` form - and not URLs embedded directly in a link, which is why these two
+are written separately from the links that use them:
+
+Reading: docutils_ and its `specification <spec_>`_.
+
+.. _docutils: https://docutils.sourceforge.io/
+.. _spec: https://docutils.sourceforge.io/rst.html
+
+.. target-notes::
+
+A transition is four or more punctuation characters on their own line:
 
 ----
 
