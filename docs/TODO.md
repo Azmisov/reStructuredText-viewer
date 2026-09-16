@@ -29,7 +29,26 @@ Loading a user's own component at runtime means one of:
   not interactivity.
 
 Worth its own session. Nothing about the current architecture forecloses any
-of the three.
+of the three. [COMPONENTS.md](COMPONENTS.md) is that session's homework: seven
+options rather than three, ranked, with the trust boundary and the four hosts
+that decide between them. It lands on a `mount`/`update`/`destroy` contract —
+which keeps prop updates guaranteed rather than hopeful, makes hot reload
+possible, and lets the user pin their own Svelte, because DOM is a safe
+boundary between two runtimes and snippets are not. The escape hatch above is
+rejected there, and the third option's toolchain cost turns out to be the
+smallest of the problems.
+
+The load-bearing claims are spiked, not assumed: two Svelte runtimes in one
+page, a host-owned children node placed by the guest, hot reload, the failure
+modes, and the webview's CSP against a cross-origin module. What is left is one
+narrow question — whether a file under the workspace root is served to a webview
+the way one under `media` is — and it decides how the bytes arrive, not the
+contract.
+
+[COMPONENT_PLAN.md](COMPONENT_PLAN.md) turns that into the build: the contract,
+the config key, the `components` message, `resolve_module` as an allowlist, the
+trust gate, and seven milestones of which the first four are the whole feature
+for the standalone tool.
 
 ## VS Code
 
