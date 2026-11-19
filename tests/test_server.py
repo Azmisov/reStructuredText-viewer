@@ -63,6 +63,28 @@ def test_websocket_rejects_a_foreign_origin(client):
             ws.receive_json()
 
 
+def test_websocket_accepts_a_predicate_given_the_host(rst):
+    """A published server checks the origin against the Host it was reached
+    by, so the predicate needs both."""
+    seen = []
+
+    def allowed(origin, host):
+        seen.append((origin, host))
+        return origin == f"http://{host}"
+
+    # The test client takes Host from an absolute URL; base_url does not
+    # reach websocket_connect.
+    url = "ws://192.168.1.5:5686/ws"
+    app = create_app(str(rst), allowed_origins=allowed)
+    with TestClient(app) as lan:
+        with lan.websocket_connect(url, headers={"origin": "http://192.168.1.5:5686"}) as ws:
+            assert ws.receive_json()["type"] == "ready"
+        with pytest.raises(Exception):
+            with lan.websocket_connect(url, headers={"origin": "http://evil.example"}) as ws:
+                ws.receive_json()
+    assert seen[0] == ("http://192.168.1.5:5686", "192.168.1.5:5686")
+
+
 def test_websocket_allows_a_request_without_an_origin(client):
     """Non-browser clients (a future VS Code host) send no Origin header."""
     with connect(client) as ws:
@@ -207,11 +229,11 @@ def test_api_browse_lists_a_directory(client):
 
 
 def test_api_browse_honours_the_filters(client, tmp_path):
-    (tmp_path / "notes.md").write_text("x")
+    (tmp_path / "notes.json").write_text("x")
     plain = {e["name"] for e in client.get("/api/browse").json()["entries"]}
     everything = {e["name"] for e in client.get("/api/browse", params={"all": "1"}).json()["entries"]}
-    assert "notes.md" not in plain
-    assert "notes.md" in everything
+    assert "notes.json" not in plain
+    assert "notes.json" in everything
 
 
 def test_api_browse_refuses_an_escaping_path(client):
@@ -310,13 +332,13 @@ def test_browse_over_the_socket_answers_the_request_that_asked(client):
 
 
 def test_browse_honours_the_filter_toggles(client, tmp_path):
-    (tmp_path / "notes.md").write_text("not rest")
+    (tmp_path / "notes.json").write_text("not rest")
     with connect(client, headers={"origin": ORIGIN}) as ws:
         ws.receive_json()
         plain = _answer(ws, {"type": "browse", "path": "", "id": 1})
         everything = _answer(ws, {"type": "browse", "path": "", "all": True, "id": 2})
-        assert "notes.md" not in {e["name"] for e in plain["entries"]}
-        assert "notes.md" in {e["name"] for e in everything["entries"]}
+        assert "notes.json" not in {e["name"] for e in plain["entries"]}
+        assert "notes.json" in {e["name"] for e in everything["entries"]}
 
 
 def test_locate_over_the_socket_resolves_a_pasted_path(client, tmp_path):

@@ -1,7 +1,8 @@
 <script>
   import {
     MODES, DENSITIES, ALIGNMENTS,
-    WIDTH_MIN, WIDTH_MAX, WIDTH_FULL, widthLabel
+    WIDTH_MIN, WIDTH_MAX, WIDTH_FULL, widthLabel,
+    SIDEBAR_MIN, SIDEBAR_MAX
   } from './settings.svelte.js';
   import { LIGHT_THEMES, DARK_THEMES } from './themes.js';
   import { HOST_THEME } from './hostTheme.svelte.js';
@@ -107,6 +108,18 @@
     </div>
   </label>
   {/if}
+
+  <label>
+    <span>Outline width <em>{Math.round(v.sidebarWidth)}rem</em></span>
+    <input
+      type="range"
+      min={SIDEBAR_MIN}
+      max={SIDEBAR_MAX}
+      step="1"
+      value={v.sidebarWidth}
+      oninput={(e) => settings.set('sidebarWidth', Number(e.currentTarget.value))}
+    />
+  </label>
 
   <label class="row">
     <span>Line numbers</span>

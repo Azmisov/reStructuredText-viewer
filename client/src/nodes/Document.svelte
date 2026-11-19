@@ -1,4 +1,5 @@
 <script>
+  import { setContext } from 'svelte';
   import Node from '../Node.svelte';
 
   /** The document root, which exists to put page furniture where it belongs.
@@ -8,6 +9,11 @@
    *  order puts the footer at the top of the page - where it reads as a stray
    *  paragraph before the title. Splitting them is the whole job. */
   let { node } = $props();
+
+  // 'rst' or 'markdown', for the few places that name the source language.
+  // A getter: the root keeps its id across documents, so this component is
+  // reused rather than remounted when another document opens.
+  setContext('rst-syntax', () => node.props.syntax);
 
   const decoration = $derived(node.children?.find((c) => c.type === 'decoration'));
   const body = $derived((node.children ?? []).filter((c) => c.type !== 'decoration'));

@@ -104,12 +104,18 @@ def register(components):
         directives.register_directive(name, build_directive(name, spec))
 
 
-def load_config(path):
-    """Read a component config file. Missing file means no components."""
+def read_config(path):
+    """The whole config file: `components`, and `markdown` options for MyST.
+    A missing file is an empty config."""
     if not path:
         return {}
     try:
         with open(path, encoding="utf-8") as handle:
-            return json.load(handle).get("components", {})
+            return json.load(handle)
     except FileNotFoundError:
         return {}
+
+
+def load_config(path):
+    """Read a component config file. Missing file means no components."""
+    return read_config(path).get("components", {})

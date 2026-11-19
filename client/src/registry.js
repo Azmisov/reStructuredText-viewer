@@ -17,6 +17,10 @@ import Document from './nodes/Document.svelte';
 import Table from './nodes/Table.svelte';
 import Aside from './nodes/Aside.svelte';
 import Raw from './nodes/Raw.svelte';
+import Break from './nodes/Break.svelte';
+import Checkbox from './nodes/Checkbox.svelte';
+import HtmlInline from './nodes/HtmlInline.svelte';
+import Docinfo from './nodes/Docinfo.svelte';
 import Unknown from './nodes/Unknown.svelte';
 
 /** docutils types that map cleanly onto a single HTML element. */
@@ -66,7 +70,22 @@ export const SIMPLE = {
   caption: 'figcaption',
   legend: 'div',
   label: 'span',
-  problematic: 'span'
+  problematic: 'span',
+  // Bibliographic fields. `Docinfo` supplies the label each one lost when
+  // docutils promoted it from a field to a node of its own.
+  author: 'span',
+  authors: 'span',
+  organization: 'span',
+  address: 'span',
+  contact: 'span',
+  version: 'span',
+  revision: 'span',
+  status: 'span',
+  date: 'span',
+  copyright: 'span',
+  // From Markdown's inline HTML, rebuilt server-side from an allowlist.
+  details: 'details',
+  summary: 'summary'
 };
 
 /** Types needing real structure or behaviour get a component. */
@@ -102,7 +121,12 @@ export const COMPONENTS = {
   caution: Admonition,
   attention: Admonition,
   danger: Admonition,
-  error: Admonition
+  error: Admonition,
+  docinfo: Docinfo,
+  // Markdown only: nodes the server adds where docutils has none.
+  hardbreak: Break,
+  checkbox: Checkbox,
+  html_inline: HtmlInline
 };
 
 /** Rendered as their children, with no wrapper element of their own. */

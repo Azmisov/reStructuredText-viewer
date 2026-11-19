@@ -1,8 +1,8 @@
 # reStructuredText-viewer
 
-Live-reloading reStructuredText previewer. Edit a `.rst` file, see it update in
-the browser — without losing your scroll position, your settings, or the state
-of anything on the page.
+Live-reloading reStructuredText and Markdown previewer. Edit a `.rst` or `.md`
+file, see it update in the browser — without losing your scroll position, your
+settings, or the state of anything on the page.
 
 **[Try it](https://azmisov.github.io/reStructuredText-viewer/)** — the sample
 corpus, rendered by the real client against recorded server responses. Reading,
@@ -18,7 +18,7 @@ rstview samples/index.rst
 ## Using it
 
 ```sh
-rstview                      # start with nothing open; pick a file in the browser
+rstview                      # nothing open; pick a file under the current directory
 rstview samples/index.rst    # open a document
 rstview --port 0             # random free port instead of the default 5686
 rstview --root ~/notes       # restrict reachable documents to a directory
@@ -29,26 +29,56 @@ The port defaults to **5686** so a pinned browser tab survives a restart.
 
 **Open…** in the top bar (or `Ctrl/Cmd+O`) browses the filesystem server-side —
 the browser cannot hand over a real path, so the dialog is served rather than
-native. It filters hidden and non-reST entries, switches between list and icon
-views, and accepts a pasted path.
+native. It filters hidden entries and anything that is not a document, switches
+between list and icon views, and accepts a pasted path.
 
-A link pointing at another local `.rst` file loads that document into the page
-instead of navigating away, so scroll, settings and loaded syntax grammars all
-survive. Back works.
+A link pointing at another local `.rst` or `.md` file loads that document into
+the page instead of navigating away, so scroll, settings and loaded syntax
+grammars all survive. Back works.
 
 Images are served from beside the document they appear in, under the same
 containment rules. Maths — `.. math::` and the `:math:` role — renders with
 KaTeX, loaded only when a document actually contains a formula.
 
-By default `--root` is the whole filesystem, which is safe because the server
-binds loopback only. Bind it anywhere else and the root narrows to the starting
-document's directory; everything outside is refused.
+Started without a document, `--root` defaults to the current directory, so the
+file dialog opens where you are. Given a document, it defaults to the whole
+filesystem, which is safe because the server binds loopback only. Bind it
+anywhere else and the root narrows to the starting document's directory;
+everything outside is refused.
+
+### Markdown
+
+`.md` and `.markdown` files are parsed by [MyST](https://myst-parser.readthedocs.io)
+into the same docutils tree reST produces, so they render through the same
+components, custom blocks included (` ```{chart} `). On top of CommonMark you
+get GitHub's tables, task lists, strikethrough, autolinks and `> [!NOTE]`
+alerts, plus `$maths$`, definition lists, `:::` directive fences and
+`{eval-rst}` for dropping into reST.
+
+Inline HTML is rebuilt from an allowlist — `<kbd>`, `<details>`, `<img>`,
+`<p align="center">` and the like become real nodes — and anything outside it
+keeps its text and loses its tags. No markup reaches the page as markup.
+
+Links behave as on GitHub: `[x](other.md#usage)` is a path, and
+`[x](#some-heading)` finds the heading by its GitHub-style slug. MyST's options
+can be set under `markdown` in `rstview.config.json`, without the `myst_`
+prefix; `extensions` replaces the default list:
+
+```json
+{"markdown": {"extensions": ["tasklist", "strikethrough"], "heading_anchors": 3}}
+```
 
 ### Settings
 
 The gear icon opens a panel persisted to `localStorage`: light/dark/system,
-spacing, font size, content width and position, code line numbers, line
-wrapping, and separate light and dark syntax themes (all 65 Shiki themes).
+spacing, font size, content width and position, outline width, code line
+numbers, line wrapping, and separate light and dark syntax themes (all 65 Shiki
+themes).
+
+Both widths can also be dragged. The bar at the edge of the page is faint until
+the pointer comes near it, and dragging it to within a few rem of the window's
+edge snaps the page to full width. The outline's bar appears only as the
+pointer approaches. Both bars also take focus and move with the arrow keys.
 
 ### Styling from inside a document
 
@@ -77,7 +107,9 @@ one needs no restart.
 
 `extension/` is a VS Code extension wrapping the same renderer. **Open Preview
 to the Side** (`Ctrl/Cmd+Shift+V`) spawns `python -m rstview --stdio` and pipes
-it into a webview, with the workspace folder as the root.
+it into a webview, with the workspace folder as the root. In a Markdown file
+the shortcut stays with VS Code's own preview; this one is in the editor
+title's `…` menu.
 
 ```sh
 pnpm --dir extension install
@@ -85,8 +117,8 @@ pnpm --dir extension build      # vendors Python, builds the client, compiles TS
 pnpm --dir extension package    # -> extension/*.vsix
 ```
 
-The extension bundles docutils and the renderer, so it needs only a Python
-3.10+ interpreter — nothing to install into it. `pnpm run vendor` builds
+The extension bundles docutils, MyST and the renderer, so it needs only a
+Python 3.11+ interpreter — nothing to install into it. `pnpm run vendor` builds
 `extension/python/` from `pyproject.toml`.
 
 The preview follows the editor as you type, unsaved changes included, and
@@ -105,7 +137,7 @@ anything else can too.
 
 | | |
 |---|---|
-| **Parsing** | docutils — the reference implementation, and reST has no formal grammar to generate a parser from |
+| **Parsing** | docutils — the reference implementation, and reST has no formal grammar to generate a parser from. Markdown through MyST, which builds the same docutils tree |
 | **Server** | Starlette + uvicorn, watchdog for file events |
 | **Wire format** | a JSON AST over a WebSocket, not HTML |
 | **Client** | Svelte 5 (runes), built with Vite |
@@ -125,7 +157,8 @@ what is left.
 ## Samples
 
 `samples/` is a small multi-document set — cross-document links, custom blocks,
-and a right-to-left document. `samples/directives.rst` exercises every
+a right-to-left document, and a Markdown one that links back and forth with
+the rest. `samples/directives.rst` exercises every
 directive docutils ships with, which is also what `tests/test_coverage.py`
 checks the renderer against.
 

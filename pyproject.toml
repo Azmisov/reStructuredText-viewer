@@ -1,13 +1,14 @@
 [project]
 name = "reStructuredText-viewer"
 version = "0.1.0"
-description = "Live-reloading reStructuredText previewer with a component-aware AST"
+description = "Live-reloading reStructuredText and Markdown previewer with a component-aware AST"
 readme = "README.md"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "docutils>=0.21",
+    "myst-docutils>=5.0",
     "starlette>=0.37",
     "uvicorn>=0.30",
     "watchdog>=4.0",

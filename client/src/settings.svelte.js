@@ -37,6 +37,7 @@ const DEFAULTS = {
   density: 'normal',
   maxWidth: 46,
   align: 'center',
+  sidebarWidth: 15,
   lineNumbers: false,
   wrapCode: false
 };
@@ -47,9 +48,17 @@ export const WIDTH_MIN = 30;
 export const WIDTH_MAX = 100;
 export const WIDTH_FULL = WIDTH_MAX;
 
+// Dragging stores fractional widths so the edge tracks the pointer; the
+// label rounds, since nobody needs to read 47.25rem.
 export function widthLabel(value) {
-  return value >= WIDTH_FULL ? 'full' : `${value}rem`;
+  return value >= WIDTH_FULL ? 'full' : `${Math.round(value)}rem`;
 }
+
+// Outline column width, in rem. The CSS also caps the column at a share of
+// the page, so a wide setting cannot crowd out the prose in a narrow pane.
+export const SIDEBAR_MIN = 10;
+export const SIDEBAR_MAX = 30;
+export const SIDEBAR_SHARE = 0.35;
 
 // Spacing scale, applied as a multiplier to the block rhythm.
 const DENSITY_SCALE = { tight: 0.55, normal: 1, roomy: 1.5 };
@@ -114,6 +123,7 @@ export function createSettings() {
       '--content-width',
       values.maxWidth >= WIDTH_FULL ? '100%' : `${values.maxWidth}rem`
     );
+    root.style.setProperty('--sidebar-width', `${values.sidebarWidth}rem`);
     root.style.setProperty('--gap-scale', String(DENSITY_SCALE[values.density] ?? 1));
     root.style.setProperty(
       '--content-margin',

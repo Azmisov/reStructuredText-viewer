@@ -3,11 +3,16 @@
   import { resolveDocumentLink } from './links.js';
   import { buildOutline } from './outline.js';
   import { createReading } from './reading.svelte.js';
-  import { createSettings } from './settings.svelte.js';
+  import {
+    createSettings,
+    WIDTH_MIN, WIDTH_MAX, WIDTH_FULL, widthLabel,
+    SIDEBAR_MIN, SIDEBAR_MAX, SIDEBAR_SHARE
+  } from './settings.svelte.js';
   import { createHostTheme } from './hostTheme.svelte.js';
   import Settings from './Settings.svelte';
   import FilePicker from './FilePicker.svelte';
   import Outline from './Outline.svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
   import Node from './Node.svelte';
 
   // The connection is built in main.js, where the transport is chosen.
@@ -147,6 +152,59 @@
   let showOutline = $state(true);
   let showSettings = $state(false);
   let showPicker = $state(false);
+
+  // --- Drag-to-resize ------------------------------------------------------
+  // Both bars write the same settings the panel's sliders do, in rem, so a
+  // dragged width survives a reload and scales with the font size like a
+  // chosen one.
+  let layout = $state(), sidebar = $state(), column = $state(), page = $state();
+  // Geometry measured when a drag starts; each move is applied to it.
+  let start = null;
+
+  // Fractional rem, so the edge follows the pointer instead of stepping.
+  const quarter = (value) => Math.round(value * 4) / 4;
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize);
+
+  function sidebarStart() {
+    start = {
+      width: sidebar.getBoundingClientRect().width,
+      // The CSS caps the column at this share; dragging past it would store
+      // a width the page never shows.
+      limit: layout.clientWidth * SIDEBAR_SHARE
+    };
+  }
+
+  function sidebarMove(dx) {
+    const px = Math.min(start.width + dx, start.limit);
+    settings.set('sidebarWidth', clamp(quarter(px / remPx()), SIDEBAR_MIN, SIDEBAR_MAX));
+  }
+
+  // Within this many rem of the column's edge, a dragged page width snaps to
+  // full. Without it, "as wide as the window" is a target a pixel wide, and
+  // missing it leaves a margin that reappears whenever the window grows.
+  const SNAP = 3;
+
+  // The bar sits on the edge that moves: a right-aligned column grows
+  // leftward.
+  const align = $derived(settings.values.align);
+
+  function pageStart() {
+    start = { width: page.getBoundingClientRect().width, room: column.clientWidth };
+  }
+
+  function pageMove(dx, { keyboard = false } = {}) {
+    // A centred column moves both edges, so the dragged one tracks the
+    // pointer only if the width changes twice as fast.
+    const growth = align === 'center' ? 2 * dx : align === 'right' ? -dx : dx;
+    const px = start.width + growth;
+    const rem = remPx();
+    // A key press moves a fixed step that the snap zone would swallow, so
+    // the keyboard only reaches full at the edge itself.
+    const zone = keyboard ? 0 : SNAP * rem * (align === 'center' ? 2 : 1);
+    const full = px >= start.room - zone || px / rem >= WIDTH_FULL;
+    settings.set('maxWidth', full ? WIDTH_FULL : Math.max(WIDTH_MIN, quarter(px / rem)));
+  }
 </script>
 
 <header class="bar">
@@ -192,29 +250,61 @@
   />
 {/if}
 
-<div class="layout" class:with-outline={showOutline}>
+<div class="layout" class:with-outline={showOutline} bind:this={layout}>
   {#if showOutline}
-    <Outline entries={outline} active={reading.active} visible={reading.visible} />
+    <div class="sidebar" bind:this={sidebar}>
+      <Outline entries={outline} active={reading.active} visible={reading.visible} />
+      {#if outline.length}
+        <!-- Invisible at rest: the outline already reads as a column, and a
+             permanent rule beside it would be one more line on the page. -->
+        <ResizeHandle
+          label="Outline width"
+          value={settings.values.sidebarWidth}
+          min={SIDEBAR_MIN}
+          max={SIDEBAR_MAX}
+          rest={0}
+          onstart={sidebarStart}
+          onmove={sidebarMove}
+        />
+      {/if}
+    </div>
   {/if}
-  <main>
-    {#if doc.error}
-      <p class="failure">{doc.error}</p>
-    {:else if doc.ast}
-      <Node node={doc.ast} />
-    {:else if doc.ready}
-      <div class="welcome">
-        <p>No document open.</p>
-        {#if browser}
-          <button onclick={() => (showPicker = true)}>
-            Open a document…
-          </button>
-        {/if}
-        <p class="hint">Root: <code>{doc.root ?? '…'}</code></p>
+  <div class="column" bind:this={column}>
+    <main bind:this={page}>
+      {#if doc.error}
+        <p class="failure">{doc.error}</p>
+      {:else if doc.ast}
+        <Node node={doc.ast} />
+      {:else if doc.ready}
+        <div class="welcome">
+          <p>No document open.</p>
+          {#if browser}
+            <button onclick={() => (showPicker = true)}>
+              Open a document…
+            </button>
+          {/if}
+          <p class="hint">Root: <code>{doc.root ?? '…'}</code></p>
+        </div>
+      {:else}
+        <p class="empty">Connecting…</p>
+      {/if}
+    </main>
+    <!-- Beside main rather than inside it: a document's own stylesheet is
+         scoped to `main`, and must not be able to restyle or hide this. -->
+    {#if doc.ast}
+      <div class="page-edge {align}">
+        <ResizeHandle
+          label="Page width"
+          value={settings.values.maxWidth}
+          min={WIDTH_MIN}
+          max={WIDTH_MAX}
+          valuetext={widthLabel(settings.values.maxWidth)}
+          onstart={pageStart}
+          onmove={pageMove}
+        />
       </div>
-    {:else}
-      <p class="empty">Connecting…</p>
     {/if}
-  </main>
+  </div>
 </div>
 
 <style>
@@ -279,13 +369,27 @@
   .layout { display: block; }
   .layout.with-outline {
     display: grid;
-    grid-template-columns: 15rem minmax(0, 1fr);
+    /* The share cap is what used to be a breakpoint that narrowed the column:
+       a chosen width holds until the pane is too narrow to afford it, and
+       then gives way to the prose rather than squeezing it. Keep the share in
+       step with SIDEBAR_SHARE, which the drag clamps to. */
+    grid-template-columns: min(var(--sidebar-width, 15rem), 35%) minmax(0, 1fr);
+  }
+  /* The outline and its drag bar side by side; both are sticky, and the
+     column stretches to the page's height to give them room to stick. */
+  .sidebar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .column {
+    position: relative;
+    min-width: 0;
   }
   main {
-    /* width:100% is load-bearing. `main` is a grid item, and auto margins
-       disable the default `stretch`, which makes the item size to max-content
-       instead of filling the column - so the rendered width tracked the
-       content rather than the setting. */
+    /* width:100% is load-bearing. Auto margins on a grid item disable the
+       default `stretch` and size it to max-content, so the rendered width
+       tracked the content rather than the setting. `main` is no longer the
+       grid item, but the width keeps it independent of which it is. */
     width: 100%;
     box-sizing: border-box;
     max-width: var(--content-width, 46rem);
@@ -295,7 +399,24 @@
        do it instead. */
     padding: calc(2rem * var(--gap-scale)) 1.75rem 6rem;
     min-width: 0;
+    /* A long URL or inline literal is one unbreakable word, and on a phone
+       one is enough to widen the whole page. Break it only where it would
+       otherwise overflow; tables and code blocks scroll in place instead. */
+    overflow-wrap: break-word;
   }
+  /* Tracks main's moving edge in CSS rather than by measuring it: the gap
+     beside a column of --content-width is all of the slack when aligned to
+     one side, and half of it when centred. The bar's 12px land inside main's
+     padding, so at full width it does not overhang the window. */
+  .page-edge {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    --slack: calc(100% - min(100%, var(--content-width, 46rem)));
+  }
+  .page-edge.center { right: calc(var(--slack) / 2); }
+  .page-edge.left { right: var(--slack); }
+  .page-edge.right { left: var(--slack); }
   .empty { color: var(--muted); }
   .welcome { color: var(--muted); padding: 3rem 0; text-align: center; }
   .welcome button {
@@ -327,13 +448,10 @@
      the prose column rather than help navigate it. */
   /* A VS Code preview beside an editor is roughly half a screen, which the old
      60rem cutoff hid the outline in - the place a document map is most useful.
-     The column narrows first, and only disappears when it genuinely would
-     squeeze the prose. */
-  @media (max-width: 62rem) {
-    .layout.with-outline { grid-template-columns: 12rem minmax(0, 1fr); }
-  }
+     The column narrows first (the share cap above), and only disappears when
+     it genuinely would squeeze the prose. */
   @media (max-width: 40rem) {
     .layout.with-outline { display: block; }
-    .layout.with-outline :global(.outline) { display: none; }
+    .sidebar { display: none; }
   }
 </style>

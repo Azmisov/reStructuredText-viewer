@@ -5,8 +5,8 @@ Why the less obvious parts are the way they are. Most of these were bugs first.
 ## Cross-document links are ordinary hyperlinks
 
 Plain reST has no cross-reference role — that is Sphinx's `:doc:`. So a link
-whose target happens to be a local `.rst`/`.txt`/`.rest` file is intercepted by
-the client, resolved relative to the current document, and swapped over the open
+whose target happens to be a local `.rst`/`.txt`/`.rest` file — or `.md`, which
+works the same way — is intercepted by the client, resolved relative to the current document, and swapped over the open
 connection. Scroll, settings and the highlighter's already-loaded grammars all
 survive; a history entry is pushed so Back works. Modified clicks
 (ctrl/cmd/shift) fall through to the browser untouched.
@@ -96,6 +96,28 @@ for the same reason.
 `html`, not `body`, carries `--base-font-size`: `rem` is root-relative, so
 setting it on `body` scales the prose but leaves the nav and sidebars behind.
 
+## Dragged widths snap to full, and the bar lives outside `main`
+
+Dragging the page edge writes the same `maxWidth` setting the slider does, in
+rem. Without a snap zone, "as wide as the window" is a target one pixel wide.
+Missing it stores a fixed width just short of the window, and that width leaves
+a margin as soon as the window grows. So within 3rem of the column's edge the
+width snaps to full instead. Arrow keys skip the zone: a 1rem step from full
+would land inside it and never get out.
+
+A drag measures the geometry once, when it starts, and applies each pointer
+delta to that snapshot. Re-measuring on every move would read back the layout
+the drag is changing. A centred column moves both edges, so the width changes
+by twice the delta for the dragged edge to stay under the pointer.
+
+The bar is a sibling of `main`, not a child. A document's stylesheet is scoped
+to `main` (see "`raw` gives up its markup but keeps its stylesheet"), so a bar
+inside `main` could be restyled or hidden by the document. Its position comes from CSS: the slack beside a column of
+`--content-width`, or half of it when centred. It needs no measuring.
+
+The outline column is capped at 35% of the page rather than narrowed at a
+breakpoint, so a chosen width holds until the pane can't afford it.
+
 ## The extension bundles docutils rather than asking for an install
 
 The nearest comparable extension is widely disliked for exactly one reason:
@@ -112,9 +134,24 @@ is no user code to import. The interpreter is a runtime, not a project context.
 
 `pnpm run vendor` builds `extension/python/` from `pyproject.toml`, the child is
 spawned with `PYTHONPATH` prepended to it, and the requirement drops to "a
-Python 3.10 or newer exists". docutils is pure Python with no compiled
+Python 3.11 or newer exists". docutils is pure Python with no compiled
 extensions, so one copy serves every OS and every interpreter version - no
 per-platform `.vsix`, no wheel matrix. Cost: 550 KB to 1.2 MB.
+
+MyST, for Markdown, brings PyYAML and MarkupSafe, whose wheels do carry C
+speedups - built for whichever interpreter ran the vendor step. Both libraries
+import the extension module optimistically and fall back to pure Python when
+it will not load, so the one-copy property holds; it was checked by running
+the bundle built under 3.13 from a bare 3.12. The vendored tree grows to about
+7.6 MB unpacked.
+
+MyST 5 is also why the floor is 3.11 rather than 3.10, for the package and the
+extension alike. MyST 4 still installs on 3.10 but lacks the `alert` and
+`gfm_autolink` extensions, and rejects the whole extension list - turning
+server-side highlighting back on with it - when one name is unknown.
+Supporting both would mean probing for extensions to serve a Python that
+reached end of life in October 2026, and the test suite already needed 3.11
+for `tomllib`.
 
 The tree is *not* checked in. Vendored dependencies in git rot silently and
 land in every diff; this one is reproducible build output, like `out/` and
@@ -126,7 +163,8 @@ deferred until someone reports it.
 
 ## The server stack is imported lazily
 
-`--stdio` needs docutils and nothing else; the WebSocket server needs Starlette,
+`--stdio` needs docutils (and MyST, imported only when a Markdown document is
+parsed) and nothing else; the WebSocket server needs Starlette,
 uvicorn and watchdog. Importing those at the top of `cli.py` would make an
 editor host require the whole stack for a preview pane it never uses. They are
 imported at the point the server actually starts, and
@@ -414,3 +452,112 @@ The demo reports its root as `/samples` rather than wherever CI checked the
 repository out, and reports its status as `demo` rather than `live`. It is not
 watching anything, and saying otherwise in the corner of the page would be a
 small lie repeated to everyone who visits.
+
+## Markdown is parsed into the reST tree, not translated to reST
+
+The alternatives were converting Markdown to reST text (pandoc, m2r) and
+rendering that, or a second parser with its own AST. Translation is lossy in
+both directions and makes every message and line number describe text the
+author never wrote. A second AST would mean a second set of node types, a
+second identity scheme and a second client registry.
+
+MyST parses Markdown directly into docutils nodes, so a Markdown document is
+just another source for the same doctree: `AstBuilder`, node ids, the client
+registry and `rstview.config.json` components all apply unchanged, and a
+` ```{chart} ` fence runs the very directive `.. chart::` does. `parse()` picks
+the parser by suffix and records the choice as `syntax` on the document, which
+the client uses only to say "Markdown warning" rather than "reST warning".
+
+It is a hard dependency, not an extra, and imported only when a Markdown file
+is parsed. An extra would make `.md` files appear in the dialog and then fail
+to render on most installs; the import being lazy keeps reST-only use from
+paying for it.
+
+## MyST's settings lean GitHub, not Sphinx
+
+Most Markdown in the wild is written for GitHub, so where GitHub has an answer
+it wins: tables, task lists, strikethrough, autolinks, alerts, and slugged
+heading anchors. MyST extensions that cannot be mistaken for prose are on too:
+`$maths$`, `:::` fences, definition lists, `{.attrs}`. Left off on purpose:
+
+- `fieldlist`: a paragraph opening with an emoji shortcode like `:tada:` turns
+  into a field list.
+- `substitution`: `{{ name }}` in prose — common in docs about templating —
+  is evaluated as Jinja.
+- `smartquotes`, `replacements`: rewrite what the author typed.
+- `linkify`: another dependency for what `gfm_autolink` already does.
+
+Code blocks are not highlighted by Pygments (`myst_highlight_code_blocks`),
+for the same reason `syntax_highlight` is off for reST: the client highlights.
+
+## Markdown's HTML is rebuilt from an allowlist
+
+Markdown leans on inline HTML in a way reST does not: `<kbd>`, `<details>`,
+`<p align="center"><img></p>` at the top of every README. MyST keeps all of it
+as `raw` nodes, and so — less obviously — hard breaks, task-list checkboxes
+and strikethrough, for which docutils has no node. The client drops raw markup
+(see "`raw` gives up its markup"), so all of that would silently vanish.
+
+`HtmlToNodes` runs as a docutils transform and parses each fragment with
+`html.parser`, mapping tags onto nodes: `<b>` to `strong`, `<p>` to
+`paragraph`, `<img>` to `image`, and a few new types where docutils has
+nothing (`hardbreak`, `checkbox`, `details`, `summary`, and `html_inline`
+for `<kbd>`, `<mark>` and similar, whose tag the client checks against its own
+list again). The open-element stack spans fragments, because Markdown inside
+`<details>` arrives as sibling nodes *between* two raw fragments. Attributes
+are allowlisted too — `class`, `id`, `align`, an image's size — and an `href`
+with a scheme that can run script loses the link and keeps the text. Unknown
+tags lose their tags and keep their text; `script`, `style` and their kin lose
+both, except that a whole `<style>` block is left raw for the client's
+stylesheet support.
+
+The trust boundary does not move: the server sends nodes, never markup, and
+nothing on the client parses document content as HTML. It runs at priority 205
+— before reference resolution, so `<a name="x">` is a target that `[](#x)`
+can find.
+
+## A Markdown link to a file is a path
+
+Under plain docutils, MyST hands a link with no recognised scheme —
+`[guide](guide.md)` — to docutils as a reference *name*, and docutils reports
+it missing. On GitHub it is a relative path. `RelativeLinks` runs just before
+docutils' `DanglingReferences` and turns any reference still unresolved into
+the URI it was written as; the client then decides whether that is another
+document. Two things are left alone: a name the document defines (a MyST
+`(label)=`), because `DanglingReferences` is what resolves internal names, and
+references from embedded reST, which carry a `name` and fail as reST would.
+
+Heading anchors need the same care. docutils ids `What's new?` as
+`what-s-new`; GitHub, and links written against it, say `whats-new`. MyST
+resolves the slug within a document, but a fragment arriving from another
+document is matched by the browser against element ids — so `Anchors` adds
+the slug as a second id, and the client renders every id a section holds,
+not only the first. That last part was a reST bug too: a `.. _name:` target
+above a section gave it an id that nothing rendered.
+
+## Wide content scrolls in its own box, never the page
+
+On a phone, one element wider than the column widens the whole page: the
+layout viewport grows to fit it, and every line of prose then scrolls sideways
+with it. So each kind of wide content gets its own way to fit. Images scale
+down to the column (`max-width: 100%`, height following), which leaves an
+explicit smaller `:width:` alone. Tables sit in a `.rst-table-scroll` wrapper
+that scrolls horizontally, since a table cannot be narrower than its widest row
+and squeezing it would only make the cells unreadable; code blocks and display
+math already scroll in place. Long URLs and inline literals break where they
+would otherwise overflow (`overflow-wrap: break-word` on `main`). A hidden
+system-message popup is parked `position: fixed`, because a hidden absolute
+box still counts toward the page's scroll width.
+
+## Image zoom is pointer events on a body-level overlay
+
+Tapping an image (one not wrapped in a `:target:` link) opens `ImageZoom`,
+mounted on `<body>` rather than inside `main`, out of reach of the document's
+own stylesheet and of any ancestor that would trap a fixed overlay. Pointer
+events give touch, pen and mouse one code path: one pointer pans, two pinch,
+a double tap or click toggles zoom, the wheel zooms about the cursor.
+`touch-action: none` on the overlay keeps the browser from taking the pinch
+for a page zoom. Panning is clamped to the image's edges, and a backdrop tap
+closes the view only when it is not zoomed, so a stray tap while panning does
+not throw the view away. No library: the whole thing is a transform and a map
+of active pointers.

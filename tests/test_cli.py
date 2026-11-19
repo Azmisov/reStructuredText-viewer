@@ -77,8 +77,41 @@ def test_published_binding_narrows_the_root(tmp_path):
     assert cli.default_root(str(doc), "0.0.0.0") == str(tmp_path.resolve())
 
 
-def test_published_binding_without_a_document_uses_the_cwd():
-    assert cli.default_root(None, "0.0.0.0") == os.getcwd()
+@pytest.mark.parametrize("host", ["localhost", "0.0.0.0"])
+def test_without_a_document_the_root_is_the_cwd(host):
+    """The file dialog opens at the root, and with nothing named the directory
+    the command was run from is the useful place for it to start."""
+    assert cli.default_root(None, host) == os.getcwd()
+
+
+@pytest.mark.parametrize("origin, host", [
+    ("http://192.168.1.5:5686", "192.168.1.5:5686"),
+    ("http://[fe80::1]:5686", "[fe80::1]:5686"),
+    ("http://localhost:5686", "localhost:5686"),
+])
+def test_published_server_accepts_the_address_it_was_reached_by(origin, host):
+    """Listening on every interface, a LAN client connects by whatever
+    address it knows - none of which a fixed allowlist could name."""
+    assert cli.published_origins()(origin, host)
+
+
+def test_published_server_accepts_this_machines_own_name():
+    import socket
+    name = socket.gethostname()
+    assert cli.published_origins()(f"http://{name}:5686", f"{name}:5686")
+
+
+@pytest.mark.parametrize("origin, host", [
+    # Another site's page, connecting across: its origin is its own.
+    ("http://evil.example", "192.168.1.5:5686"),
+    ("http://6.6.6.6:5686", "192.168.1.5:5686"),
+    # DNS rebinding: origin and host agree, but on a name the attacker owns.
+    ("http://evil.example:5686", "evil.example:5686"),
+    # A browser always sends Host; refuse rather than guess without it.
+    ("http://192.168.1.5:5686", None),
+])
+def test_published_server_refuses_other_sites(origin, host):
+    assert not cli.published_origins()(origin, host)
 
 
 def test_module_entry_point_exists():
@@ -93,3 +126,14 @@ def test_module_entry_point_exists():
     )
     assert result.returncode == 0, result.stderr
     assert "--stdio" in result.stdout
+
+
+def test_missing_document_exits_with_the_path_as_given(monkeypatch, tmp_path):
+    # Under the default root of "/", the library's root-relative message would
+    # name the file without its leading slash, as if the path were mangled.
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["-B", "sub/missing.rst"])
+    message = str(exc.value)
+    assert message.startswith("rstview: sub/missing.rst does not exist")
+    assert str(tmp_path / "sub" / "missing.rst") in message

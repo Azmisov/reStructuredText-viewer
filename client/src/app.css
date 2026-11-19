@@ -16,6 +16,8 @@
   --error-bg: #fef3f2;
   --warn: #b45309;
   --ok: #067647;
+  /* `<mark>` in Markdown: the browser's default yellow, softened. */
+  --mark-bg: #fff2a8;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
   /* Set at runtime from settings; these are the fallbacks. */
@@ -43,6 +45,7 @@
     --error-bg: #2a1615;
     --warn: #f0a92e;
     --ok: #47c98a;
+    --mark-bg: #5a4a0a;
   }
 }
 
@@ -59,6 +62,7 @@
   --error-bg: #2a1615;
   --warn: #f0a92e;
   --ok: #47c98a;
+  --mark-bg: #5a4a0a;
 }
 
 html {
@@ -104,6 +108,14 @@ table {
   font-size: 0.92em;
   margin: 1.25rem 0;
 }
+/* The table's margins move to its scroller, so the gap above and below sits
+   outside the scrolling box rather than inside it. */
+.rst-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 1.25rem 0;
+}
+.rst-table-scroll > table { margin: 0; }
 td, th {
   border: 1px solid var(--border);
   padding: calc(0.45rem * var(--gap-scale)) 0.75rem;
@@ -258,6 +270,15 @@ figure .rst-legend {
   margin-top: 0.5rem;
 }
 figure .rst-legend > :first-child { margin-top: 0; }
+/* A picture wider than the column scales down to it, keeping its shape. An
+   explicit `:width:` smaller than the column is untouched; `height: auto`
+   follows from it. A `:height:` alone is honoured, with `contain` keeping the
+   picture undistorted if the column then squeezes its width. */
+img {
+  max-width: 100%;
+  object-fit: contain;
+}
+img:not([height]), img[width] { height: auto; }
 img.align-center, figure.align-center { margin-inline: auto; }
 img.align-right, figure.align-right { margin-inline-start: auto; }
 
@@ -429,6 +450,53 @@ blockquote:not(.epigraph):not(.pull-quote):not(.highlights) cite {
 p.align-left, div.align-left, blockquote.align-left { text-align: left; }
 p.align-center, div.align-center, blockquote.align-center { text-align: center; }
 p.align-right, div.align-right, blockquote.align-right { text-align: right; }
+
+
+/* --- Bibliographic fields ---------------------------------------------- */
+/* reST's leading field list, or Markdown front matter: facts about the
+   document rather than part of it, so set as a compact two-column table. The
+   rows are <div>s (valid inside <dl>) and drop out of the grid's way. */
+dl.rst-docinfo {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 1rem;
+  font-size: 0.9em;
+}
+dl.rst-docinfo > div { display: contents; }
+dl.rst-docinfo dt { color: var(--muted); }
+dl.rst-docinfo dd { margin: 0; }
+dl.rst-docinfo dd > p { margin: 0; }
+
+
+/* --- Markdown ----------------------------------------------------------- */
+/* Column alignment from a Markdown table's delimiter row. */
+td.text-left, th.text-left { text-align: left; }
+td.text-center, th.text-center { text-align: center; }
+td.text-right, th.text-right { text-align: right; }
+
+/* A task list's box stands in for the bullet, so it hangs where one would. */
+li.task-list-item { list-style: none; }
+li.task-list-item > p > .rst-task:first-child { margin-inline: -1.4em 0.4em; }
+
+kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--code-bg);
+}
+
+mark {
+  background: var(--mark-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+details { margin: var(--block-gap) 0; }
+summary { cursor: pointer; }
+details[open] > summary { margin-bottom: calc(var(--block-gap) / 2); }
 
 
 /* --- Title references --------------------------------------------------- */

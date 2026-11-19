@@ -13,6 +13,11 @@ import docutils.core
 import docutils.nodes
 import docutils.utils
 
+RST_SUFFIXES = (".rst", ".txt", ".rest")
+MARKDOWN_SUFFIXES = (".md", ".markdown")
+# Everything the library will open as a document.
+SUFFIXES = RST_SUFFIXES + MARKDOWN_SUFFIXES
+
 # Attributes docutils puts on every node.  Emitting them when empty triples the
 # size of the payload and changes nothing on the client.
 _NOISE = ("ids", "classes", "names", "dupnames", "backrefs")
@@ -108,12 +113,24 @@ class AstBuilder(docutils.nodes.GenericNodeVisitor):
         return out
 
 
-def parse(source, filename=None, settings=None):
-    """Render reST source to an AST dict.
+def syntax_of(filename):
+    """'markdown' or 'rst', by suffix. Anything unrecognised is reST, which
+    is what a bare string with no filename has always meant."""
+    if filename and filename.lower().endswith(MARKDOWN_SUFFIXES):
+        return "markdown"
+    return "rst"
+
+
+def parse(source, filename=None, settings=None, markdown=None, syntax=None):
+    """Render reST or Markdown source to an AST dict.
+
+    `syntax` defaults to what the filename's suffix says. `markdown` is the
+    config's `markdown` object, and matters only for Markdown.
 
     System messages are left in the tree as ordinary nodes so that one bad
     directive degrades a region instead of blanking the document.
     """
+    syntax = syntax or syntax_of(filename)
     overrides = {
         # Keep heading levels literal; don't hoist a lone title out of the body.
         "doctitle_xform": False,
@@ -131,28 +148,37 @@ def parse(source, filename=None, settings=None):
         # keep them off the terminal too.
         "warning_stream": io.StringIO(),
     }
-    if settings:
-        overrides.update(settings)
 
     try:
+        parser = None
+        if syntax == "markdown":
+            # Imported here: the reST path, which is all `--stdio` strictly
+            # needs, should not pay for MyST or fail without it.
+            from . import markdown as _markdown
+
+            overrides.update(_markdown.settings(markdown))
+            parser = _markdown.Parser()
+        if settings:
+            overrides.update(settings)
         doctree = docutils.core.publish_doctree(
-            source, source_path=filename, settings_overrides=overrides
+            source, source_path=filename, settings_overrides=overrides, parser=parser
         )
     except Exception as exc:  # noqa: BLE001 - surfaced to the client as content
-        return _fatal(exc, filename)
+        return _fatal(exc, filename, syntax)
 
     builder = AstBuilder(doctree)
     ast = builder.build(doctree, Counter())
     ast["props"].setdefault("source", filename or "<string>")
+    ast["props"]["syntax"] = syntax
     return ast
 
 
-def _fatal(exc, filename):
+def _fatal(exc, filename, syntax="rst"):
     message = f"{exc.__class__.__name__}: {exc}"
     return {
         "type": "document",
         "id": "document",
-        "props": {"source": filename or "<string>"},
+        "props": {"source": filename or "<string>", "syntax": syntax},
         "children": [
             {
                 "type": "system_message",

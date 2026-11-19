@@ -2,9 +2,12 @@
  *
  *  Plain reST has no cross-reference role outside Sphinx, so a link to another
  *  document is an ordinary hyperlink whose target happens to be a local file:
- *  `link <other.rst>`_ or `link <api/index.rst#usage>`_.
+ *  `link <other.rst>`_ or `link <api/index.rst#usage>`_. Markdown is the same,
+ *  `[link](other.md)`, and either kind of document may link to the other.
+ *
+ *  Mirrors `SUFFIXES` in `rstview/parse.py`.
  */
-const DOC_SUFFIXES = ['.rst', '.txt', '.rest'];
+const DOC_SUFFIXES = ['.rst', '.txt', '.rest', '.md', '.markdown'];
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 

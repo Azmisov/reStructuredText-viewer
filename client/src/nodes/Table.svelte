@@ -3,23 +3,29 @@
 
   /** `.. table::` gives the table a `title` child. Rendered through the normal
    *  `title` mapping it becomes a heading, which lands *inside* the table and
-   *  splits it in two; a table's title is a `<caption>`. */
+   *  splits it in two; a table's title is a `<caption>`.
+   *
+   *  The wrapper is the table's own scroller. A table cannot be narrower than
+   *  its widest row, and without one a wide table widens the page itself -
+   *  on a phone, everything scrolls sideways to show one table. */
   let { node } = $props();
 
   const title = $derived(node.children?.find((c) => c.type === 'title'));
   const rest = $derived((node.children ?? []).filter((c) => c.type !== 'title'));
 </script>
 
-<table id={node.props?.ids?.[0]} class={node.props?.classes?.join(' ')}>
-  {#if title}
-    <caption>
-      {#each title.children ?? [] as child (child.id)}<Node node={child} />{/each}
-    </caption>
-  {/if}
-  {#each rest as child (child.id)}
-    <Node node={child} />
-  {/each}
-</table>
+<div class="rst-table-scroll">
+  <table id={node.props?.ids?.[0]} class={node.props?.classes?.join(' ')}>
+    {#if title}
+      <caption>
+        {#each title.children ?? [] as child (child.id)}<Node node={child} />{/each}
+      </caption>
+    {/if}
+    {#each rest as child (child.id)}
+      <Node node={child} />
+    {/each}
+  </table>
+</div>
 
 <style>
   /* Styled as a banner row above the column headers rather than as floating

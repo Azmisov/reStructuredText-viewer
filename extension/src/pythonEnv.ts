@@ -6,11 +6,12 @@ const run = promisify(execFile);
 
 /** The oldest interpreter the vendored code runs on. Matches
  *  `requires-python` in pyproject.toml. */
-const MINIMUM = [3, 10] as const;
+// MyST, which parses Markdown, supports nothing older.
+const MINIMUM = [3, 11] as const;
 
 /** Interpreters to try, best first.
  *
- *  The extension ships its own docutils and its own `rstview`, so this is
+ *  The extension ships its own docutils, MyST and `rstview`, so this is
  *  looking for a bare runtime, not a configured environment - any Python new
  *  enough will do. The Python extension's choice still comes first, because a
  *  user who has selected an interpreter for this workspace means it.
@@ -58,7 +59,7 @@ export class NoInterpreter extends Error {
       'Tried, in order:',
       ...this.tried.map((python) => `  • ${python}`),
       '',
-      'Nothing else needs installing - docutils ships with the extension.',
+      'Nothing else needs installing - docutils and MyST ship with the extension.',
       '',
       'Fix it in one of these ways:',
       '  1. Install Python from https://python.org/downloads (or your package manager).',

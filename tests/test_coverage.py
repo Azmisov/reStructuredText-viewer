@@ -195,7 +195,8 @@ def test_plain_stylesheet_has_no_svelte_global_syntax():
 
 
 def test_samples_are_fully_renderable():
-    """Every sample document must render with no Unknown fallbacks.
+    """Every sample document, reST and Markdown, must render with no Unknown
+    fallbacks.
 
     `samples/directives.rst` exercises every directive docutils ships with, so
     this is the widest coverage check there is - it is what caught `compound`,
@@ -203,6 +204,75 @@ def test_samples_are_fully_renderable():
     """
     samples = pathlib.Path(__file__).resolve().parents[1] / "samples"
     declared = _declared()
-    for document in sorted(samples.glob("*.rst")):
+    documents = [*samples.glob("*.rst"), *samples.glob("*.md")]
+    assert any(d.suffix == ".md" for d in documents), "no Markdown sample to check"
+    for document in sorted(documents):
         unhandled = _types(parse(document.read_text(), document.name)) - declared
         assert not unhandled, f"{document.name}: no mapping for {sorted(unhandled)}"
+
+
+MARKDOWN_RICH = """\
+---
+author: Someone
+authors: [A, B]
+version: 1
+project: x
+---
+
+# Heading
+
+*em* **strong** `code` ~~strike~~ $m$ [link](https://x.y) [doc](other.md)
+<kbd>K</kbd> <mark>m</mark> <abbr title="t">a</abbr> <span>s</span>  
+hard break.[^f]
+
+[^f]: Footnote.
+
+- [ ] task
+- [x] done
+
+Term
+: Definition.
+
+| a | b |
+|:--|--:|
+| 1 | 2 |
+
+> [!TIP]
+> Alert.
+
+:::{note}
+Fenced.
+:::
+
+$$
+x
+$$
+
+<details>
+<summary>More</summary>
+
+Hidden.
+
+</details>
+
+<div align="center"><p>Para</p><img src="a.png"></div>
+
+<hr>
+
+<pre><code>pre</code></pre>
+
+<ol start="3"><li>three</li></ol>
+
+<h3>Rubric</h3>
+
+<blockquote>Quoted</blockquote>
+"""
+
+
+def test_rich_markdown_has_no_unhandled_types():
+    ast = parse(MARKDOWN_RICH, "t.md")
+    types = _types(ast)
+    unhandled = types - _declared()
+    assert not unhandled, f"client registry has no mapping for: {sorted(unhandled)}"
+    # A document that warns is exercising the error path, not the renderer.
+    assert "system_message" not in types

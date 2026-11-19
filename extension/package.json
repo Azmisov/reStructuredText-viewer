@@ -1,7 +1,7 @@
 {
   "name": "restructuredtext-viewer",
   "displayName": "reStructuredText Viewer",
-  "description": "Live preview for reStructuredText, rendered from a docutils AST.",
+  "description": "Live preview for reStructuredText and Markdown, rendered from a docutils AST.",
   "version": "0.1.0",
   "publisher": "Azmisov",
   "license": "LGPL-3.0-or-later",
@@ -54,6 +54,11 @@
           "command": "rstview.showPreview",
           "when": "editorLangId == restructuredtext",
           "group": "navigation"
+        },
+        {
+          "command": "rstview.showPreview",
+          "when": "editorLangId == markdown",
+          "group": "1_rstview"
         }
       ]
     },
@@ -64,7 +69,7 @@
           "type": "string",
           "default": "",
           "scope": "resource",
-          "markdownDescription": "Interpreter used to run `rstview`. Supports `${workspaceFolder}`.\n\nLeave empty to use the Python extension's active interpreter, falling back to `python3` on PATH. Any Python 3.10+ works \u2014 docutils and the renderer ship with the extension, so nothing needs installing into it."
+          "markdownDescription": "Interpreter used to run `rstview`. Supports `${workspaceFolder}`.\n\nLeave empty to use the Python extension's active interpreter, falling back to `python3` on PATH. Any Python 3.11+ works \u2014 docutils, MyST and the renderer ship with the extension, so nothing needs installing into it."
         }
       }
     }

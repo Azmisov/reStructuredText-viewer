@@ -12,6 +12,8 @@ import os
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from .parse import SUFFIXES
+
 DEBOUNCE = 0.03
 
 # Newer inotify backends report reads as well as writes. Reacting to those
@@ -19,7 +21,8 @@ DEBOUNCE = 0.03
 # self-sustaining loop that never touches the file it is supposedly watching.
 READ_ONLY_EVENTS = frozenset({"opened", "closed_no_write"})
 
-WATCHED_SUFFIXES = (".rst", ".txt", ".rest")
+# Exactly the documents the library will open; nothing else needs a re-render.
+WATCHED_SUFFIXES = SUFFIXES
 
 # Directories that generate constant churn and hold no documents.
 IGNORED_DIRS = frozenset({

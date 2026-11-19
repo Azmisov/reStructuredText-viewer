@@ -33,7 +33,7 @@ def recorded(fixtures, tmp_path_factory):
 
 def test_every_document_in_the_corpus_has_an_ast(recorded):
     out, manifest = recorded
-    listed = sorted(p.name for p in SAMPLES.glob("*.rst"))
+    listed = sorted(p.name for p in SAMPLES.iterdir() if p.suffix in (".rst", ".md"))
     assert sorted(manifest["documents"]) == listed
     for relpath in manifest["documents"]:
         message = json.loads((out / manifest["docs"][relpath]).read_text(encoding="utf-8"))

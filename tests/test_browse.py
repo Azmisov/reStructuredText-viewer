@@ -9,7 +9,7 @@ from rstview.library import DocumentError, Library
 @pytest.fixture
 def library(tmp_path):
     (tmp_path / "index.rst").write_text("Index\n=====\n")
-    (tmp_path / "notes.md").write_text("not rest")
+    (tmp_path / "notes.json").write_text("{}")
     (tmp_path / ".hidden.rst").write_text("Hidden\n======\n")
     (tmp_path / ".config").mkdir()
     (tmp_path / "sub").mkdir()
@@ -35,12 +35,12 @@ def test_hidden_entries_can_be_shown(library):
     assert ".config" in listed and ".hidden.rst" in listed
 
 
-def test_non_rest_files_are_excluded_by_default(library):
-    assert "notes.md" not in names(library.browse(""))
+def test_non_documents_are_excluded_by_default(library):
+    assert "notes.json" not in names(library.browse(""))
 
 
-def test_non_rest_files_can_be_shown(library):
-    assert "notes.md" in names(library.browse("", show_all=True))
+def test_non_documents_can_be_shown(library):
+    assert "notes.json" in names(library.browse("", show_all=True))
 
 
 def test_directories_sort_before_documents(library):

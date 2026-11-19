@@ -1,4 +1,5 @@
 <script>
+  import { getContext } from 'svelte';
   import Node from '../Node.svelte';
 
   /** Parse errors are content, not exceptions: one bad directive degrades
@@ -24,6 +25,9 @@
   );
   const popupId = $derived(`sysmsg-${String(node.id).replace(/\s+/g, '-')}`);
   const severe = $derived(kind === 'severe');
+
+  const syntax = getContext('rst-syntax');
+  const language = $derived(syntax?.() === 'markdown' ? 'Markdown' : 'reST');
 
   // Hover and focus open the popup in CSS alone, which is what lets the
   // pointer travel from the chip onto the message without it closing.
@@ -95,7 +99,7 @@
         place();
       }}
     >
-      reST {kind}{node.props.line ? ` · line ${node.props.line}` : ''}
+      {language} {kind}{node.props.line ? ` · line ${node.props.line}` : ''}
     </button>
     <span class="popup" id={popupId} role="note" bind:this={popup} style:--shift={`${shift}px`}>
       {#each node.children ?? [] as child (child.id)}
@@ -183,6 +187,7 @@
     margin-top: 0.3rem;
     display: block;
     width: max-content;
+    box-sizing: border-box;
     max-width: min(28rem, calc(100vw - 2rem));
     max-height: 60vh;
     overflow: auto;
@@ -202,6 +207,15 @@
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
+  }
+  /* But a hidden absolute box still counts toward the page's scrollable
+     width. On a phone, a chip near the right edge then widens the page, the
+     layout viewport grows to fit, and `place` measures against that grown
+     width - so the popup never gets pulled back. Parked fixed while hidden,
+     it adds no scroll width and measures the same. */
+  .rst-system-message:not(:hover, :focus-within, .pinned) .popup {
+    position: fixed;
+    top: 0;
   }
   .rst-system-message:hover .popup,
   .rst-system-message:focus-within .popup,

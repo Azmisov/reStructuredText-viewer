@@ -21,7 +21,15 @@ def open_library(path=None, config=None, root=None):
     entry = library.relative(target)
     if entry is None:
         raise ValueError(f"{path} is not inside the document root {root}")
-    library.get(entry)
+    # Report a bad starting document in the terms it was given: the library's
+    # own message names a root-relative path, which under the default root of
+    # "/" reads like the absolute path with its leading slash lost.
+    if not os.path.isfile(target):
+        raise ValueError(f"{path} does not exist (resolved to {target})")
+    try:
+        library.get(entry)
+    except DocumentError as exc:
+        raise ValueError(f"{path}: {exc}") from exc
     return library, entry
 
 

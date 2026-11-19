@@ -94,7 +94,7 @@ jobs:
           print(f"{wheel}: index.html + {len(assets)} assets")
           PY
 
-      # Vendors docutils, builds the webview bundle, compiles the host, packs.
+      # Vendors docutils and MyST, builds the webview bundle, compiles the host, packs.
       - name: Package the extension
         run: pnpm --dir extension run package
 

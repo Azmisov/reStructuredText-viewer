@@ -1,5 +1,6 @@
 """Command line entry point."""
 import argparse
+import ipaddress
 import os
 import pathlib
 import shutil
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
+from urllib.parse import urlsplit
 
 from . import stdio
 
@@ -28,18 +30,71 @@ DEFAULT_PORT = 5686
 # publishes the server, and the default document root tightens accordingly.
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "localhost6"})
 
+# Binding these listens on every interface, so there is no one address to
+# open in a browser or to print.
+WILDCARD_HOSTS = frozenset({"0.0.0.0", "::", ""})
+
 
 def default_root(filename, listen):
     """Where cross-document links and the file dialog may reach.
 
-    On a loopback interface the server is no more exposed than the shell that
-    started it, so the default is the whole filesystem. Bound anywhere else it
-    is reachable by others, and the default narrows to the document's own
-    directory - `--root` overrides either way.
+    With no document named, it is the current directory: the file dialog
+    opens there, which is where whoever ran the command is working.
+
+    Given a document, on a loopback interface the server is no more exposed
+    than the shell that started it, so the default is the whole filesystem
+    and the document may link anywhere. Bound anywhere else it is reachable by
+    others, and the default narrows to the document's own directory -
+    `--root` overrides either way.
     """
+    if not filename:
+        return os.getcwd()
     if listen not in LOCAL_HOSTS:
-        return os.path.dirname(os.path.realpath(filename)) if filename else os.getcwd()
+        return os.path.dirname(os.path.realpath(filename))
     return os.path.abspath(os.sep)
+
+
+def published_origins():
+    """The WebSocket origin check for a server reachable from other machines.
+
+    A fixed allowlist cannot name every address a LAN client might connect
+    by, and listing the bind address itself is useless for a wildcard - no
+    browser's origin is `http://0.0.0.0`. So the origin must instead be the
+    host the browser connected to, which a page from another site cannot
+    arrange: its origin is its own.
+
+    A DNS-rebinding page can, since it controls a name that resolves here. So
+    that host must also be an IP literal or one of this machine's own names -
+    neither of which an attacker's page can be served from.
+    """
+    hostname = socket.gethostname().lower()
+    names = {"localhost", hostname, f"{hostname}.local", socket.getfqdn().lower()}
+
+    def allowed(origin, host):
+        if not host or origin.lower() != f"http://{host.lower()}":
+            return False
+        name = urlsplit(origin).hostname or ""
+        try:
+            ipaddress.ip_address(name)
+        except ValueError:
+            return name in names
+        return True
+
+    return allowed
+
+
+def _lan_address():
+    """This machine's address on its default route, or None offline.
+
+    Connecting a UDP socket sends nothing; it only makes the kernel choose the
+    outgoing interface, whose address is the one a LAN client would use.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("192.0.2.1", 9))
+            return sock.getsockname()[0]
+    except OSError:
+        return None
 
 
 def _free_port(host):
@@ -93,9 +148,10 @@ def main(argv=None):
                              "[default: --port + 1]")
     parser.add_argument("-r", "--root", default=None,
                         help="directory cross-document links and the file "
-                             "dialog may reach [default: the whole filesystem "
-                             "on a loopback interface; the document's own "
-                             "directory when bound elsewhere]")
+                             "dialog may reach [default: the current directory "
+                             "with no document given; otherwise the whole "
+                             "filesystem on a loopback interface, or the "
+                             "document's own directory when bound elsewhere]")
     parser.add_argument("-B", "--no-browser", action="store_true",
                         help="don't open a web browser")
     parser.add_argument("-c", "--components", default="rstview.config.json",
@@ -144,11 +200,17 @@ def main(argv=None):
         url = f"http://{host}:{dev_port}/"
         origins = {f"http://{host}:{dev_port}", f"http://127.0.0.1:{dev_port}"}
     else:
-        url = f"http://{host}:{port}/"
+        # A wildcard is not an address a browser can usefully open, so this
+        # machine's own browser goes through loopback instead.
+        shown = "localhost" if host in WILDCARD_HOSTS else host
+        url = f"http://{shown}:{port}/"
         origins = {f"http://{host}:{port}", f"http://127.0.0.1:{port}"}
 
     root = opts.root or default_root(opts.filename, host)
     published = host not in LOCAL_HOSTS
+    # The Vite proxy rewrites the handshake, so --dev keeps the fixed list.
+    if published and not opts.dev:
+        origins = published_origins()
 
     try:
         from .app import create_app
@@ -174,7 +236,11 @@ def main(argv=None):
     what = opts.filename or "no document open"
     print(f"rstview: serving {what} at {url}", file=sys.stderr)
     print(f"rstview: document root {os.path.realpath(root)}", file=sys.stderr)
-    if published and opts.root is None:
+    if host in WILDCARD_HOSTS and not opts.dev:
+        others = [socket.gethostname(), _lan_address()]
+        for name in filter(None, others):
+            print(f"rstview: also at http://{name}:{port}/", file=sys.stderr)
+    if published and opts.root is None and opts.filename:
         print("rstview: bound to a non-loopback interface; root limited to the "
               "document's directory (pass --root to widen)", file=sys.stderr)
     if opts.dev:

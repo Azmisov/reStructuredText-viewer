@@ -100,8 +100,8 @@ from any dependency is diverted to stderr rather than corrupting the stream.
 ## Containment
 
 Path containment is a security boundary, not a detail. `--root` defaults to the
-whole filesystem when bound to loopback and narrows to the starting document's
-directory otherwise. Absolute paths, `..` traversal, symlinks pointing out of
+current directory when no document is given; with one, to the whole filesystem
+when bound to loopback and the starting document's directory otherwise. Absolute paths, `..` traversal, symlinks pointing out of
 the tree, and non-reST files are all rejected server-side — after `realpath`,
 never before — and `/api/browse`, `/api/locate` and `/media` apply the same
 check as document loading. Entries symlinked out of the tree are omitted from

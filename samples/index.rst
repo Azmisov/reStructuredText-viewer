@@ -11,6 +11,7 @@ footnote [#note]_.
 Cross-document: read the `user guide <guide.rst>`_, browse every directive in
 the `directive showcase <directives.rst>`_, or jump straight to
 `installing <guide.rst#installing>`_. In this document, see `Tables`_.
+Markdown renders too: see the `Markdown sample <markdown.md>`_.
 
 - first item
 - second item

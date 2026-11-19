@@ -29,7 +29,11 @@ async def _send(websocket, payload):
 
 def create_app(path=None, allowed_origins=None, config=None, root=None):
     """`path` may be None: the server then starts with no document open and
-    the client picks one from the library."""
+    the client picks one from the library.
+
+    `allowed_origins` is a set of exact origins, or a predicate called with
+    the origin and the request's Host header - for a server bound beyond
+    loopback, where no fixed list can name every address a client may use."""
     library, entry = open_library(path, config=config, root=root)
     root = library.root
 
@@ -96,7 +100,13 @@ def create_app(path=None, allowed_origins=None, config=None, root=None):
     async def ws(websocket):
         # The WebSocket handshake is not covered by CORS, so check Origin here.
         origin = websocket.headers.get("origin")
-        if allowed is not None and origin is not None and origin not in allowed:
+        if allowed is None or origin is None:
+            permitted = True
+        elif callable(allowed):
+            permitted = allowed(origin, websocket.headers.get("host"))
+        else:
+            permitted = origin in allowed
+        if not permitted:
             await websocket.close(code=1008)
             return
 

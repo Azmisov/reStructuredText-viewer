@@ -1,4 +1,4 @@
-"""A rooted collection of reStructuredText documents.
+"""A rooted collection of reStructuredText and Markdown documents.
 
 Cross-document links mean the server can no longer serve exactly one file, so
 it serves a directory - which makes path containment a security boundary rather
@@ -7,10 +7,8 @@ than a detail. Every lookup goes through `resolve`.
 import os
 import pathlib
 
-from .directives import load_config, register
-from .parse import parse
-
-SUFFIXES = (".rst", ".txt", ".rest")
+from .directives import read_config, register
+from .parse import SUFFIXES, parse, syntax_of
 
 # Directories that hold no documents and would make a listing useless.
 IGNORED_DIRS = frozenset({
@@ -36,15 +34,20 @@ class Document:
         self.version = 0
         self.clients = set()
 
-    def render(self, source=None):
+    def render(self, source=None, markdown=None):
         """`source` overrides the file's contents, for previewing an unsaved
-        editor buffer without writing it to disk."""
+        editor buffer without writing it to disk. `markdown` is the config's
+        Markdown options."""
         if source is None:
             try:
                 source = pathlib.Path(self.abspath).read_text(encoding="utf-8")
             except OSError as exc:
-                source = f".. error::\n\n   Cannot read {self.relpath}: {exc}\n"
-        self.ast = parse(source, filename=self.relpath)
+                problem = f"Cannot read {self.relpath}: {exc}"
+                if syntax_of(self.relpath) == "markdown":
+                    source = f"```{{error}}\n{problem}\n```\n"
+                else:
+                    source = f".. error::\n\n   {problem}\n"
+        self.ast = parse(source, filename=self.relpath, markdown=markdown)
         self.version += 1
         return self.ast
 
@@ -97,13 +100,13 @@ class Library:
         if not os.path.isfile(real):
             raise DocumentError(f"{relpath!r} does not exist")
         if not real.lower().endswith(SUFFIXES):
-            raise DocumentError(f"{relpath!r} is not a reStructuredText file")
+            raise DocumentError(f"{relpath!r} is not a reStructuredText or Markdown file")
         return real
 
     def resolve_asset(self, relpath):
         """Map a path to a *non-document* file inside the root.
 
-        Documents get `resolve`, which insists on a reST suffix. Images and
+        Documents get `resolve`, which insists on a document suffix. Images and
         other things a document points at go through here instead: same
         containment - realpath before the check, so a symlink cannot step out -
         but no suffix requirement. Directories are refused, so this cannot be
@@ -135,7 +138,7 @@ class Library:
         """One directory's contents, for the file dialog.
 
         `show_hidden` includes dot-entries; `show_all` includes files that are
-        not reStructuredText. Directories are always listed so the tree stays
+        not documents. Directories are always listed so the tree stays
         navigable.
         """
         directory = self.resolve_dir(relpath)
@@ -246,8 +249,9 @@ class Library:
 
     def reload(self, document, source=None):
         # Config is re-read per render so adding a component needs no restart.
-        register(load_config(self.config))
-        document.render(source)
+        config = read_config(self.config)
+        register(config.get("components"))
+        document.render(source, markdown=config.get("markdown"))
         return document
 
     @property

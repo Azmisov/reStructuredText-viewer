@@ -1,5 +1,10 @@
-/** Build `extension/python/`: docutils plus our own package, importable by any
- *  Python 3.10+ with nothing installed.
+/** Build `extension/python/`: docutils, MyST for Markdown, and our own package,
+ *  importable by any Python 3.11+ with nothing installed.
+ *
+ *  MyST's dependencies include PyYAML and MarkupSafe, whose wheels carry C
+ *  speedups built for the interpreter that ran this. Both fall back to pure
+ *  Python when the extension module will not load, so the bundle still works
+ *  under any other interpreter - just without the speedups.
  *
  *  Run at package time rather than checked in. Vendored trees that live in git
  *  rot quietly and land in every diff; this one is reproducible from
@@ -15,20 +20,23 @@ const extension = path.resolve(here, '..');
 const repo = path.resolve(extension, '..');
 const target = path.join(extension, 'python');
 
-/** The docutils requirement, taken from pyproject so the bundle cannot drift
- *  from what the package itself declares. */
-function requirement() {
+/** The parsing requirements, taken from pyproject so the bundle cannot drift
+ *  from what the package itself declares. The server's dependencies
+ *  (Starlette, uvicorn, watchdog) stay out: the extension runs `--stdio`. */
+function requirements() {
   const pyproject = fs.readFileSync(path.join(repo, 'pyproject.toml'), 'utf8');
-  const match = pyproject.match(/"(docutils[^"]*)"/);
-  if (!match) throw new Error('no docutils requirement found in pyproject.toml');
-  return match[1];
+  return ['docutils', 'myst-docutils'].map((name) => {
+    const match = pyproject.match(new RegExp(`"(${name}[^"]*)"`));
+    if (!match) throw new Error(`no ${name} requirement found in pyproject.toml`);
+    return match[1];
+  });
 }
 
-function install(spec) {
+function install(specs) {
   // uv if it is here, pip otherwise: contributors have one or the other.
   const attempts = [
-    ['uv', ['pip', 'install', '--target', target, '--no-cache', spec]],
-    ['python3', ['-m', 'pip', 'install', '--target', target, '--no-cache-dir', spec]]
+    ['uv', ['pip', 'install', '--target', target, '--no-cache', ...specs]],
+    ['python3', ['-m', 'pip', 'install', '--target', target, '--no-cache-dir', ...specs]]
   ];
   for (const [command, args] of attempts) {
     try {
@@ -38,13 +46,13 @@ function install(spec) {
       continue;
     }
   }
-  throw new Error(`could not install ${spec}; needs uv or pip on PATH`);
+  throw new Error(`could not install ${specs.join(' ')}; needs uv or pip on PATH`);
 }
 
 fs.rmSync(target, { recursive: true, force: true });
 fs.mkdirSync(target, { recursive: true });
 
-install(requirement());
+install(requirements());
 
 // Our own package, source only. `src/rstview/client/` is the built web bundle,
 // which the extension does not serve - it has its own copy in `media/`.
@@ -77,4 +85,4 @@ function* walk(directory) {
 }
 
 const size = execFileSync('du', ['-sh', target]).toString().split('\t')[0];
-console.log(`vendored ${requirement()} + rstview into extension/python (${size})`);
+console.log(`vendored ${requirements().join(' ')} + rstview into extension/python (${size})`);

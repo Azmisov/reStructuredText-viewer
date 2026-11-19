@@ -10,7 +10,14 @@
   const rowspan = $derived(node.props.morerows ? node.props.morerows + 1 : undefined);
 </script>
 
-<svelte:element this={inHead ? 'th' : 'td'} {colspan} {rowspan}>
+<!-- Classes carry Markdown's column alignment (`text-left`, `text-center`,
+     `text-right`); reST tables set none. -->
+<svelte:element
+  this={inHead ? 'th' : 'td'}
+  {colspan}
+  {rowspan}
+  class={node.props.classes?.join(' ') || undefined}
+>
   {#each node.children ?? [] as child (child.id)}
     <Node node={child} />
   {/each}

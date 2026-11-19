@@ -50,6 +50,29 @@ the config key, the `components` message, `resolve_module` as an allowlist, the
 trust gate, and seven milestones of which the first four are the whole feature
 for the standalone tool.
 
+## Markdown
+
+Parsed through MyST into the same doctree as reST; see the Markdown entries in
+[DECISIONS.md](DECISIONS.md). Known gaps, roughly by how often they will bite:
+
+- **HTML tables lose their structure.** `<table>` is outside the allowlist, so
+  its cell text survives as loose paragraphs. Mapping it means building
+  docutils' `table`/`tgroup`/`colspec` shape from rows of unknown width, and
+  `colspan`/`rowspan` into `morecols`/`morerows`. `<dl>` has the same problem
+  in miniature (`dt`/`dd` are not wrapped in an item).
+- **Emoji shortcodes** (`:tada:`) stay as text. GitHub renders them; MyST has
+  no extension for it, and a table of ~1800 names is a lot of data for one
+  feature.
+- **Line numbers are weaker than reST's.** MyST gives table internals line 0
+  and inline raw HTML no reliable line at all (inline HTML nodes take their
+  paragraph's). Messages still point at the right line; this matters for the
+  scroll sync spike, which should run against a Markdown document too.
+- **Sphinx-only roles and links** (`{ref}`, `{doc}`, `<project:...>`) warn,
+  exactly as the Sphinx roles do in reST. GitHub-style `[text](#slug)` and
+  `[text](file.md)` are the supported way to link.
+- **An invalid directive option** is dropped with a warning and the directive
+  still runs; reST rejects the whole directive. MyST's behaviour, not ours.
+
 ## VS Code
 
 Milestones 1-6 are done and 9 is partly done; see
@@ -88,7 +111,7 @@ Milestones 1-6 are done and 9 is partly done; see
   marketplace wants an Azure DevOps token in the repository's secrets. Both are
   one job each on top of what `.github/workflows/ci.yml` already builds.
 - **Machines with no Python at all.** Bundling docutils dropped the
-  requirement to "a Python 3.10+ exists", which is the 90% win. Closing the
+  requirement to "a Python 3.11+ exists", which is the 90% win. Closing the
   rest means frozen per-platform binaries (~15MB each, a per-platform `.vsix`,
   a real build pipeline). Wait for someone to ask.
 - **Trim the KaTeX fonts.** All three formats ship - woff2 296K, woff 336K,

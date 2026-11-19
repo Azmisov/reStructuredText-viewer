@@ -18,7 +18,7 @@ def library(tmp_path):
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "deep.rst").write_text("Deep\n====\n")
     (tmp_path / "secret.txt.bak").write_text("nope")
-    (tmp_path / "notes.md").write_text("nope")
+    (tmp_path / "notes.json").write_text("nope")
     return Library(str(tmp_path))
 
 
@@ -60,8 +60,8 @@ def test_symlink_out_of_the_tree_is_rejected(library, tmp_path):
         library.resolve("escape.rst")
 
 
-def test_non_rest_files_are_rejected(library):
-    for name in ("notes.md", "secret.txt.bak"):
+def test_non_documents_are_rejected(library):
+    for name in ("notes.json", "secret.txt.bak"):
         with pytest.raises(DocumentError):
             library.resolve(name)
 
@@ -98,8 +98,8 @@ def test_filesystem_root_contains_everything(tmp_path):
     assert library.relative(str(doc)) == str(doc.resolve()).lstrip("/")
 
 
-def test_filesystem_root_still_rejects_non_rest_files(tmp_path):
-    other = tmp_path / "a.md"
+def test_filesystem_root_still_rejects_non_documents(tmp_path):
+    other = tmp_path / "a.json"
     other.write_text("x")
     with pytest.raises(DocumentError):
         Library("/").resolve(str(other))
