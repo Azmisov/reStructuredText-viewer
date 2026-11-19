@@ -1,6 +1,7 @@
 """Command line entry point."""
 import argparse
 import ipaddress
+import json
 import os
 import pathlib
 import shutil
@@ -8,8 +9,10 @@ import socket
 import subprocess
 import sys
 import threading
+import urllib.error
+import urllib.request
 import webbrowser
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from . import stdio
 
@@ -54,6 +57,22 @@ def default_root(filename, listen):
     return os.path.abspath(os.sep)
 
 
+def _own_names():
+    """Names this machine answers to that no outside page can be served from:
+    an IP literal, or one of these."""
+    hostname = socket.gethostname().lower()
+    names = {"localhost", hostname, f"{hostname}.local", socket.getfqdn().lower()}
+
+    def ours(name):
+        try:
+            ipaddress.ip_address(name)
+        except ValueError:
+            return name.lower() in names
+        return True
+
+    return ours
+
+
 def published_origins():
     """The WebSocket origin check for a server reachable from other machines.
 
@@ -67,20 +86,95 @@ def published_origins():
     that host must also be an IP literal or one of this machine's own names -
     neither of which an attacker's page can be served from.
     """
-    hostname = socket.gethostname().lower()
-    names = {"localhost", hostname, f"{hostname}.local", socket.getfqdn().lower()}
+    ours = _own_names()
 
     def allowed(origin, host):
         if not host or origin.lower() != f"http://{host.lower()}":
             return False
-        name = urlsplit(origin).hostname or ""
-        try:
-            ipaddress.ip_address(name)
-        except ValueError:
-            return name in names
-        return True
+        return ours(urlsplit(origin).hostname or "")
 
     return allowed
+
+
+def allowed_hosts(listen):
+    """The Host header check for every request, against DNS rebinding.
+
+    On loopback only loopback names can reach the server legitimately; bound
+    wider, any address or name of this machine can, by the same reasoning as
+    `published_origins`.
+    """
+    if listen in LOCAL_HOSTS:
+        return lambda name: name.lower() in LOCAL_HOSTS
+    return _own_names()
+
+
+def _fetch(url):
+    """GET a JSON route of a server on this machine: (status, body), or None
+    if nothing answered with JSON. Proxies are bypassed - an http_proxy that
+    does not exempt localhost would otherwise swallow the request."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(url, timeout=2) as response:
+            return response.status, json.load(response)
+    except urllib.error.HTTPError as exc:
+        try:
+            return exc.code, json.load(exc)
+        except ValueError:
+            return None
+    except (OSError, ValueError):
+        return None
+
+
+def running_server(port):
+    """What `/api/info` says about an rstview already on `port`, or None.
+
+    Anything else on the port - or nothing - is None, and the caller starts a
+    server of its own, failing as it always has if the port is taken.
+    """
+    answer = _fetch(f"http://localhost:{port}/api/info")
+    if answer is None or answer[0] != 200:
+        return None
+    info = answer[1]
+    return info if isinstance(info, dict) and info.get("name") == "rstview" else None
+
+
+def tab_url(base, kind, relpath):
+    """The page address that opens a document, or the dialog in a folder."""
+    if kind == "dir":
+        return f"{base}?{urlencode({'dir': relpath})}" if relpath else base
+    return f"{base}?{urlencode({'doc': relpath})}"
+
+
+def hand_over(info, port, target, no_browser):
+    """Open `target` in a server that is already running, then return.
+
+    The server resolves the path, since it owns the root and the containment
+    rules. The browser is opened from here rather than by the server: this
+    process is in the user's desktop session, and a daemon started by a
+    service manager may have no display to open one on.
+    """
+    base = info.get("url") or f"http://localhost:{port}/"
+    asked = target or os.getcwd()
+    answer = _fetch(f"http://localhost:{port}/api/locate?{urlencode({'path': os.path.abspath(asked)})}")
+    if answer is None:
+        sys.exit(f"rstview: the server at {base} did not answer")
+    status, body = answer
+    if status != 200:
+        if target is None:
+            # Run from outside the server's root with nothing named: the
+            # dialog at the root is still what was asked for.
+            body = {"path": "", "kind": "dir"}
+        else:
+            sys.exit(f"rstview: {body.get('message', 'refused')} (server at {base})")
+    if body["kind"] == "file":
+        sys.exit(f"rstview: {asked} is not a reStructuredText or Markdown file")
+
+    url = tab_url(base, body["kind"], body["path"])
+    print(f"rstview: opening {asked} in the server already at {base}", file=sys.stderr)
+    if no_browser:
+        print(url)
+    else:
+        webbrowser.open(url)
 
 
 def _lan_address():
@@ -136,8 +230,14 @@ def _start_vite(api_port, dev_port):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="rstview", description=__doc__)
     parser.add_argument("filename", nargs="?", default=None,
-                        help="reStructuredText file to preview; omit to start "
-                             "with no document open and pick one in the browser")
+                        help="document to preview, or a folder to open the file "
+                             "dialog in; omit for the current directory. If an "
+                             "rstview is already listening on the port, the tab "
+                             "is opened on that one instead")
+    parser.add_argument("-d", "--daemon", action="store_true",
+                        help="run as a long-lived server: open no browser, "
+                             "default the root to your home directory, and let "
+                             "`rstview PATH` from any shell open tabs on it")
     parser.add_argument("-l", "--listen", default=None,
                         help="interface to listen on [default: localhost]")
     parser.add_argument("-p", "--port", type=int, default=None,
@@ -148,9 +248,10 @@ def main(argv=None):
                              "[default: --port + 1]")
     parser.add_argument("-r", "--root", default=None,
                         help="directory cross-document links and the file "
-                             "dialog may reach [default: the current directory "
-                             "with no document given; otherwise the whole "
-                             "filesystem on a loopback interface, or the "
+                             "dialog may reach [default: your home directory "
+                             "with --daemon; the folder given, or the current "
+                             "directory with no document given; otherwise the "
+                             "whole filesystem on a loopback interface, or the "
                              "document's own directory when bound elsewhere]")
     parser.add_argument("-B", "--no-browser", action="store_true",
                         help="don't open a web browser")
@@ -185,8 +286,34 @@ def main(argv=None):
         return
 
     host = opts.listen or "localhost"
+    if opts.daemon:
+        if opts.filename:
+            parser.error("--daemon starts with nothing open; once it is "
+                         "running, `rstview PATH` opens a tab on it")
+        if host not in LOCAL_HOSTS and opts.root is None:
+            parser.error("--daemon bound beyond loopback would publish your "
+                         "home directory; pass --root to say what to serve")
+
     port = DEFAULT_PORT if opts.port is None else opts.port
+    if port != 0:
+        running = running_server(port)
+        if running is not None:
+            # Options that shape a server have nothing to apply to one that
+            # already exists, so they mean "a second server" - which cannot
+            # share this port.
+            if opts.daemon or opts.dev or opts.root or opts.listen:
+                sys.exit(f"rstview: another rstview is already serving "
+                         f"{running.get('root')} on port {port}; stop it, or "
+                         f"pass --port 0 to run beside it")
+            hand_over(running, port, opts.filename, opts.no_browser)
+            return
     port = _free_port(host) if port == 0 else port
+
+    # A folder is where the dialog starts, and with no --root, what it may
+    # reach - as if rstview had been run from inside it.
+    filename, folder = opts.filename, None
+    if filename and os.path.isdir(filename):
+        filename, folder = None, filename
 
     vite = None
     if opts.dev:
@@ -206,7 +333,14 @@ def main(argv=None):
         url = f"http://{shown}:{port}/"
         origins = {f"http://{host}:{port}", f"http://127.0.0.1:{port}"}
 
-    root = opts.root or default_root(opts.filename, host)
+    if opts.root:
+        root = opts.root
+    elif opts.daemon:
+        root = os.path.expanduser("~")
+    elif folder:
+        root = folder
+    else:
+        root = default_root(filename, host)
     published = host not in LOCAL_HOSTS
     # The Vite proxy rewrites the handshake, so --dev keeps the fixed list.
     if published and not opts.dev:
@@ -214,6 +348,7 @@ def main(argv=None):
 
     try:
         from .app import create_app
+        from .library import DocumentError
     except ImportError as exc:
         # Reachable when only the stdio dependencies are installed: the editor
         # path needs docutils alone, so a partial install is a real state.
@@ -225,29 +360,44 @@ def main(argv=None):
 
     try:
         app = create_app(
-            opts.filename,
+            filename,
             allowed_origins=origins,
             config=opts.components,
             root=root,
+            allowed_hosts=allowed_hosts(host),
+            url=url,
         )
     except ValueError as exc:
         sys.exit(f"rstview: {exc}")
 
-    what = opts.filename or "no document open"
-    print(f"rstview: serving {what} at {url}", file=sys.stderr)
+    start = url
+    if folder:
+        try:
+            start = tab_url(url, "dir", app.state.library.locate(os.path.abspath(folder))["path"])
+        except DocumentError as exc:
+            sys.exit(f"rstview: {exc}")
+
+    if opts.daemon:
+        print(f"rstview: daemon at {url}; `rstview PATH` opens a tab on it",
+              file=sys.stderr)
+    else:
+        what = filename or folder or "no document open"
+        print(f"rstview: serving {what} at {url}", file=sys.stderr)
     print(f"rstview: document root {os.path.realpath(root)}", file=sys.stderr)
     if host in WILDCARD_HOSTS and not opts.dev:
         others = [socket.gethostname(), _lan_address()]
         for name in filter(None, others):
             print(f"rstview: also at http://{name}:{port}/", file=sys.stderr)
-    if published and opts.root is None and opts.filename:
+    if published and opts.root is None and filename:
         print("rstview: bound to a non-loopback interface; root limited to the "
               "document's directory (pass --root to widen)", file=sys.stderr)
     if opts.dev:
         print(f"rstview: api on :{port}, vite with HMR on {url}", file=sys.stderr)
-    if not opts.no_browser:
+    # A daemon outlives the shell that started it, and a service manager may
+    # give it no display; tabs come from `rstview PATH` instead.
+    if not opts.no_browser and not opts.daemon:
         # Vite needs a moment before it will answer.
-        threading.Timer(1.5 if opts.dev else 0.5, lambda: webbrowser.open(url)).start()
+        threading.Timer(1.5 if opts.dev else 0.5, lambda: webbrowser.open(start)).start()
 
     try:
         import uvicorn

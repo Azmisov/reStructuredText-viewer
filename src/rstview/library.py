@@ -19,6 +19,11 @@ IGNORED_DIRS = frozenset({
 # A listing is for choosing from, not for enumerating a filesystem.
 LIST_LIMIT = 2000
 
+# Rendered documents nobody is viewing that stay cached. A one-off server
+# rarely reaches it; a daemon left running for weeks over a home directory
+# would otherwise keep every document it was ever asked for.
+CACHE_LIMIT = 64
+
 
 class DocumentError(Exception):
     """Requested path is missing, unreadable, or outside the root."""
@@ -214,10 +219,15 @@ class Library:
             raise DocumentError(f"{text!r} does not exist")
 
         relpath = self.relative(real) or ""
-        return {
-            "path": "" if relpath == "." else relpath,
-            "kind": "dir" if os.path.isdir(real) else "doc",
-        }
+        if os.path.isdir(real):
+            kind = "dir"
+        elif real.lower().endswith(SUFFIXES):
+            kind = "doc"
+        else:
+            # Located, but not something that can be opened: the caller says
+            # so where the path was typed rather than in the document pane.
+            kind = "file"
+        return {"path": "" if relpath == "." else relpath, "kind": kind}
 
     def relative(self, abspath):
         """Inverse of resolve, for mapping filesystem events back to documents."""
@@ -231,7 +241,7 @@ class Library:
         abspath = self.resolve(relpath)
         key = self.relative(abspath)
 
-        document = self._documents.get(key)
+        document = self._documents.pop(key, None)
         if document is None:
             document = Document(key, abspath)
             self._documents[key] = document
@@ -240,7 +250,21 @@ class Library:
             # opened; nothing else knows the set of files worth watching.
             if self.on_load is not None:
                 self.on_load(abspath)
+        else:
+            # Reinserted, so the dict's order is least recently used first.
+            self._documents[key] = document
+        self._trim()
         return document
+
+    def _trim(self):
+        """Drop the least recently used documents that no client is viewing.
+
+        One being viewed is never dropped, since the watcher's pushes are
+        addressed through it; one dropped is rendered again if asked for.
+        """
+        idle = [key for key, document in self._documents.items() if not document.clients]
+        for key in idle[:max(0, len(idle) - CACHE_LIMIT)]:
+            del self._documents[key]
 
     def find(self, abspath):
         """The already-loaded document for a path, if any."""

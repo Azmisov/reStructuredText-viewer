@@ -1,0 +1,32 @@
+# Runs rstview as an always-on local service on :5686, over your home directory.
+# With it up, `rstview PATH` from any shell opens a browser tab on it instead of
+# starting a server of its own.
+#
+# Loopback only. The root is your whole home directory, and there is no
+# authentication: binding wider would publish every file under it to the network.
+#
+# Install by symlinking, so edits here take effect after a daemon-reload:
+#   ln -s "$PWD/deploy/rstview.service" ~/.config/systemd/user/rstview.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rstview
+#   loginctl enable-linger "$USER"     # start at boot, not just at login
+#
+# ExecStart assumes `uv tool install` (or pipx) put rstview in ~/.local/bin.
+# An editable install serves the working tree: a rebuilt client bundle shows on
+# reload, a Python change needs `systemctl --user restart rstview`.
+
+[Unit]
+Description=rstview: reStructuredText and Markdown previewer
+After=network.target
+
+[Service]
+Type=simple
+# The component config (`-c`) resolves from here; ~/rstview.config.json is
+# picked up if it exists, and nothing is needed if it does not.
+WorkingDirectory=%h
+ExecStart=%h/.local/bin/rstview --daemon
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

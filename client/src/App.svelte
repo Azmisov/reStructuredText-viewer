@@ -66,11 +66,23 @@
 
   /** Open a library-relative path directly, as the picker supplies it. */
   function openDocument(path) {
+    picked = path;
+    startDir = null;
     doc.open(path);
     if (browser) history.pushState({ path }, '', `?doc=${encodeURIComponent(path)}`);
     pendingHash = '';
     showPicker = false;
   }
+
+  // With nothing open there is nothing behind the dialog to go back to, so it
+  // is open and cannot be dismissed until a document arrives. A pick that
+  // fails lands back here, which is why its error is shown in the dialog.
+  const mustPick = $derived(browser && doc.idle);
+  // Where a remounted dialog starts: the last pick, if it failed to open, so
+  // the reader is not thrown back to the root to find their place again.
+  let picked = $state(null);
+  // A folder the page was opened on (`?dir=`), as `rstview FOLDER` does.
+  let startDir = $state(null);
 
   let pendingHash = $state('');
 
@@ -141,9 +153,17 @@
       const path = event.state?.path ?? new URLSearchParams(location.search).get('doc');
       if (path) doc.open(path);
     }
-    // Deep links: honour ?doc= on first load.
-    const initial = new URLSearchParams(location.search).get('doc');
-    if (initial) doc.open(initial);
+    // Deep links: honour ?doc= on first load, and ?dir= by opening the
+    // dialog in that folder.
+    const params = new URLSearchParams(location.search);
+    const initial = params.get('doc');
+    if (initial) {
+      picked = initial;
+      doc.open(initial);
+    } else if (params.has('dir')) {
+      startDir = params.get('dir');
+      showPicker = true;
+    }
 
     window.addEventListener('popstate', onpopstate);
     return () => window.removeEventListener('popstate', onpopstate);
@@ -229,7 +249,7 @@
       aria-label="Toggle outline"
       aria-pressed={showOutline}>☰</button
     >
-    <span class="source">{doc.path ?? (doc.ready ? 'no document' : 'loading…')}</span>
+    <span class="source">{doc.path ?? (doc.ready ? '' : 'loading…')}</span>
   </span>
   <span class="right">
     <span class="status" data-status={doc.status}>{doc.status}</span>
@@ -240,13 +260,19 @@
   <Settings {settings} onclose={() => (showSettings = false)} />
 {/if}
 
-{#if showPicker && browser}
+<!-- Not before `ready`: a dialog opened by `?dir=` would otherwise send its
+     first lookup down a socket that is not open yet. -->
+{#if browser && doc.ready && (showPicker || mustPick)}
   <FilePicker
-    current={doc.path}
+    current={doc.path ?? picked}
+    start={startDir}
+    root={doc.root}
+    notice={mustPick ? doc.error : null}
+    dismissable={!mustPick}
     browse={doc.browse}
     locate={doc.locate}
     onpick={openDocument}
-    onclose={() => (showPicker = false)}
+    onclose={() => { showPicker = false; startDir = null; }}
   />
 {/if}
 
@@ -271,23 +297,16 @@
   {/if}
   <div class="column" bind:this={column}>
     <main bind:this={page}>
-      {#if doc.error}
+      {#if doc.error && !mustPick}
         <p class="failure">{doc.error}</p>
       {:else if doc.ast}
         <Node node={doc.ast} />
-      {:else if doc.ready}
-        <div class="welcome">
-          <p>No document open.</p>
-          {#if browser}
-            <button onclick={() => (showPicker = true)}>
-              Open a document…
-            </button>
-          {/if}
-          <p class="hint">Root: <code>{doc.root ?? '…'}</code></p>
-        </div>
-      {:else}
+      {:else if !doc.ready}
         <p class="empty">Connecting…</p>
       {/if}
+      <!-- Connected with nothing open: the page stays blank, and the dialog
+           above it is the whole interface until something is picked. -->
+
     </main>
     <!-- Beside main rather than inside it: a document's own stylesheet is
          scoped to `main`, and must not be able to restyle or hide this. -->
@@ -418,17 +437,6 @@
   .page-edge.left { right: var(--slack); }
   .page-edge.right { left: var(--slack); }
   .empty { color: var(--muted); }
-  .welcome { color: var(--muted); padding: 3rem 0; text-align: center; }
-  .welcome button {
-    background: var(--link);
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    padding: 0.4rem 0.9rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  .hint { font-size: 0.8rem; }
   .failure {
     color: var(--error);
     background: var(--error-bg);

@@ -18,6 +18,23 @@ it, the File System Access API is Chromium-only and still path-less, and OPFS is
 a sandbox with no relation to the user's files. So the server browses and the
 client draws the dialog.
 
+## Bookmarks live in the browser, as absolute paths
+
+Every rstview on a port shares one origin, and so one `localStorage`, whatever
+root each was started with. A root-relative bookmark would point somewhere
+different under each; an absolute one means the same folder everywhere, and is
+greyed out where the current root cannot reach it. Keeping them server-side
+would survive a cleared browser, but needs a write endpoint and a config file
+that nothing else does.
+
+## With nothing open, the dialog is the page
+
+A blank page with "No document open" and a button was one click between the
+reader and the only thing they could do. The dialog opens instead and cannot be
+dismissed until a document arrives — there is nothing behind it to go back to.
+A document that fails to open in that state reports its error inside the
+dialog, which reopens in the failed document's folder.
+
 ## Text direction has no setting
 
 The Unicode bidirectional algorithm already orders characters within a line, and

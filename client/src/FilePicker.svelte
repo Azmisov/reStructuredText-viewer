@@ -11,12 +11,28 @@
    */
   import { untrack } from 'svelte';
 
-  let { current = null, browse, locate, onpick, onclose } = $props();
+  let {
+    current = null,
+    // A folder to open in instead of the current document's.
+    start = null,
+    // The server's root as an absolute path, which bookmarks are kept against.
+    root = null,
+    // An error from outside the dialog - a document that failed to open while
+    // nothing else was - shown here because nothing else is on screen.
+    notice = null,
+    // False while nothing is open: there is no page behind the dialog to
+    // return to, so Escape and the backdrop do nothing.
+    dismissable = true,
+    browse,
+    locate,
+    onpick,
+    onclose
+  } = $props();
 
   // Opens in the current document's folder. Deliberately the initial value
   // only: the dialog is remounted each time it opens, and after that the user
   // navigates freely without being yanked back when the document changes.
-  let dir = $state(untrack(() => parentOf(current)));
+  let dir = $state(untrack(() => start ?? parentOf(current)));
   let entries = $state([]);
   let parent = $state(null);
   let error = $state(null);
@@ -46,6 +62,56 @@
     } catch {
       // A stored preference is a convenience, not a requirement.
     }
+  }
+
+  // --- Bookmarks -----------------------------------------------------------
+  // Kept as absolute paths, not library-relative ones. Every rstview on a port
+  // shares one origin and so one localStorage, whatever root each was started
+  // with; a relative path would point somewhere different under each. One
+  // outside this server's root is still listed, but cannot be opened here.
+  const BOOKMARKS = 'rstview-bookmarks';
+  let bookmarks = $state(pref(BOOKMARKS, []).filter((b) => typeof b === 'string'));
+
+  // The root is reported in the server's own spelling: backslashes on Windows.
+  const sep = $derived(root && root.includes('\\') && !root.includes('/') ? '\\' : '/');
+  const prefix = $derived(root ? (root.endsWith(sep) ? root : root + sep) : null);
+
+  function absoluteOf(relpath) {
+    if (!relpath) return root;
+    return prefix + relpath.split('/').join(sep);
+  }
+
+  /** The library path of a bookmark, or null if this root cannot reach it. */
+  function relativeOf(absolute) {
+    if (absolute === root) return '';
+    if (!prefix || !absolute.startsWith(prefix)) return null;
+    return absolute.slice(prefix.length).split(sep).join('/');
+  }
+
+  function labelOf(absolute) {
+    const trimmed = absolute.length > 1 && absolute.endsWith(sep) ? absolute.slice(0, -1) : absolute;
+    return trimmed.slice(trimmed.lastIndexOf(sep) + 1) || trimmed;
+  }
+
+  const here = $derived(root ? absoluteOf(dir) : null);
+  const marked = $derived(here !== null && bookmarks.includes(here));
+
+  function toggleBookmark() {
+    if (here === null) return;
+    bookmarks = marked ? bookmarks.filter((b) => b !== here) : [...bookmarks, here];
+    remember(BOOKMARKS, bookmarks);
+  }
+
+  function unbookmark(absolute) {
+    bookmarks = bookmarks.filter((b) => b !== absolute);
+    remember(BOOKMARKS, bookmarks);
+  }
+
+  function goto(absolute) {
+    const relpath = relativeOf(absolute);
+    if (relpath === null) return;
+    filter = '';
+    load(relpath);
   }
 
   function parentOf(path) {
@@ -109,8 +175,10 @@
       if (data.kind === 'dir') {
         pasted = '';
         load(data.path);
-      } else {
+      } else if (data.kind === 'doc') {
         onpick(data.path);
+      } else {
+        error = `${text} is not a reStructuredText or Markdown file`;
       }
     } catch (e) {
       error = e.message;
@@ -118,7 +186,10 @@
   }
 
   function onkeydown(event) {
-    if (event.key === 'Escape') return onclose();
+    if (event.key === 'Escape') {
+      if (dismissable) onclose();
+      return;
+    }
     if (event.key === 'ArrowDown') {
       cursor = Math.min(index + 1, matches.length - 1);
       event.preventDefault();
@@ -144,7 +215,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="backdrop" onclick={onclose} role="presentation"></div>
+<div class="backdrop" onclick={() => dismissable && onclose()} role="presentation"></div>
 
 <div class="dialog" role="dialog" aria-label="Open document">
   <header class="crumbs">
@@ -153,7 +224,39 @@
       <span class="sep">/</span>
       <button class="crumb" onclick={() => load(crumb.path)}>{crumb.name}</button>
     {/each}
+    {#if here !== null}
+      <button
+        class="star"
+        class:on={marked}
+        onclick={toggleBookmark}
+        title={marked ? 'Remove bookmark' : 'Bookmark this folder'}
+        aria-label={marked ? 'Remove bookmark' : 'Bookmark this folder'}
+        aria-pressed={marked}>{marked ? '★' : '☆'}</button
+      >
+    {/if}
   </header>
+
+  {#if bookmarks.length && root}
+    <nav class="places" aria-label="Bookmarked folders">
+      {#each bookmarks as bookmark (bookmark)}
+        {@const reachable = relativeOf(bookmark) !== null}
+        <span class="place" class:here={bookmark === here}>
+          <button
+            class="go-place"
+            disabled={!reachable}
+            onclick={() => goto(bookmark)}
+            title={reachable ? bookmark : `${bookmark} is outside this server's root`}
+          >★ {labelOf(bookmark)}</button>
+          <button
+            class="drop"
+            onclick={() => unbookmark(bookmark)}
+            title="Remove bookmark"
+            aria-label="Remove bookmark {labelOf(bookmark)}">×</button
+          >
+        </span>
+      {/each}
+    </nav>
+  {/if}
 
   <div class="controls">
     <!-- svelte-ignore a11y_autofocus -->
@@ -193,8 +296,8 @@
     </div>
   </div>
 
-  {#if error}
-    <p class="error">{error}</p>
+  {#if error ?? notice}
+    <p class="error">{error ?? notice}</p>
   {/if}
 
   <div class="body" class:icons={view === 'icons'}>
@@ -286,6 +389,55 @@
   }
   .crumb:hover { background: var(--code-bg); }
   .sep { color: var(--muted); }
+  .star {
+    margin-left: auto;
+    flex: none;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+    padding: 0.1rem 0.25rem;
+    border-radius: 3px;
+  }
+  .star:hover { background: var(--code-bg); color: var(--fg); }
+  .star.on { color: var(--link); }
+
+  .places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.4rem 0.7rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .place {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    font-size: 0.75rem;
+    max-width: 14rem;
+  }
+  .place.here { border-color: var(--link); }
+  .place button {
+    background: none;
+    border: none;
+    color: var(--fg);
+    cursor: pointer;
+    font: inherit;
+  }
+  .go-place {
+    padding: 0.15rem 0.2rem 0.15rem 0.55rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .go-place:disabled { color: var(--muted); cursor: not-allowed; text-decoration: line-through; }
+  .drop { color: var(--muted); padding: 0.15rem 0.45rem 0.15rem 0.25rem; }
+  .place button:hover:not(:disabled) { background: var(--code-bg); }
+  .drop:hover { color: var(--error); }
 
   .controls {
     display: flex;

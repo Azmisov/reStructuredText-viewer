@@ -128,7 +128,7 @@ def test_module_entry_point_exists():
     assert "--stdio" in result.stdout
 
 
-def test_missing_document_exits_with_the_path_as_given(monkeypatch, tmp_path):
+def test_missing_document_exits_with_the_path_as_given(monkeypatch, tmp_path, no_server):
     # Under the default root of "/", the library's root-relative message would
     # name the file without its leading slash, as if the path were mangled.
     monkeypatch.chdir(tmp_path)
@@ -137,3 +137,112 @@ def test_missing_document_exits_with_the_path_as_given(monkeypatch, tmp_path):
     message = str(exc.value)
     assert message.startswith("rstview: sub/missing.rst does not exist")
     assert str(tmp_path / "sub" / "missing.rst") in message
+
+
+@pytest.fixture
+def no_server(monkeypatch):
+    """Whatever happens to be listening on this machine's port 5686 must not
+    turn a test of starting a server into a hand-over."""
+    monkeypatch.setattr(cli, "running_server", lambda port: None)
+
+
+@pytest.fixture
+def handed(monkeypatch, tmp_path):
+    """A running server over tmp_path, answering /api/locate like the real one."""
+    from rstview.library import DocumentError, Library
+
+    library = Library(str(tmp_path))
+    opened = []
+
+    def fetch(url):
+        from urllib.parse import parse_qs, urlsplit
+        query = parse_qs(urlsplit(url).query)
+        try:
+            return 200, library.locate(query["path"][0])
+        except DocumentError as exc:
+            return 404, {"type": "error", "message": str(exc)}
+
+    info = {"name": "rstview", "root": str(tmp_path), "url": "http://localhost:5686/"}
+    monkeypatch.setattr(cli, "running_server", lambda port: info)
+    monkeypatch.setattr(cli, "_fetch", fetch)
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    return opened
+
+
+def test_a_document_is_handed_to_a_running_server(handed, tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "a b.rst").write_text("A\n=\n")
+    cli.main([str(tmp_path / "sub" / "a b.rst")])
+    assert handed == ["http://localhost:5686/?doc=sub%2Fa+b.rst"]
+
+
+def test_a_folder_opens_the_dialog_there(handed, tmp_path):
+    (tmp_path / "notes").mkdir()
+    cli.main([str(tmp_path / "notes")])
+    assert handed == ["http://localhost:5686/?dir=notes"]
+
+
+def test_no_argument_opens_the_dialog_in_the_cwd(handed, tmp_path, monkeypatch):
+    (tmp_path / "here").mkdir()
+    monkeypatch.chdir(tmp_path / "here")
+    cli.main([])
+    assert handed == ["http://localhost:5686/?dir=here"]
+
+
+def test_no_argument_outside_the_root_falls_back_to_the_root(handed, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path.parent)
+    cli.main([])
+    assert handed == ["http://localhost:5686/"]
+
+
+def test_a_path_outside_the_running_root_is_refused(handed, tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        cli.main([str(tmp_path.parent)])
+    assert "outside the document root" in str(exc.value)
+    assert handed == []
+
+
+def test_a_non_document_is_refused_in_the_shell(handed, tmp_path):
+    (tmp_path / "data.json").write_text("{}")
+    with pytest.raises(SystemExit) as exc:
+        cli.main([str(tmp_path / "data.json")])
+    assert "not a reStructuredText or Markdown file" in str(exc.value)
+
+
+def test_no_browser_prints_the_url_instead(handed, tmp_path, capsys):
+    (tmp_path / "a.rst").write_text("A\n=\n")
+    cli.main(["-B", str(tmp_path / "a.rst")])
+    assert capsys.readouterr().out.strip() == "http://localhost:5686/?doc=a.rst"
+    assert handed == []
+
+
+@pytest.mark.parametrize("flag", [["--daemon"], ["--dev"], ["--root", "."], ["--listen", "localhost"]])
+def test_server_options_with_one_already_running_exit_clearly(handed, flag):
+    """They describe a second server, which cannot share the port."""
+    with pytest.raises(SystemExit) as exc:
+        cli.main(flag)
+    assert "already serving" in str(exc.value)
+
+
+def test_daemon_takes_no_document(no_server):
+    with pytest.raises(SystemExit):
+        cli.main(["--daemon", "a.rst"])
+
+
+def test_daemon_beyond_loopback_needs_a_root(no_server):
+    with pytest.raises(SystemExit):
+        cli.main(["--daemon", "--listen", "0.0.0.0"])
+
+
+def test_running_server_ignores_something_else_on_the_port(monkeypatch):
+    monkeypatch.setattr(cli, "_fetch", lambda url: (200, {"name": "nginx"}))
+    assert cli.running_server(5686) is None
+    monkeypatch.setattr(cli, "_fetch", lambda url: None)
+    assert cli.running_server(5686) is None
+
+
+def test_loopback_hosts_are_the_only_ones_allowed_on_loopback():
+    allowed = cli.allowed_hosts("localhost")
+    assert allowed("localhost") and allowed("127.0.0.1") and allowed("::1")
+    assert not allowed("evil.example")
+    assert not allowed("192.168.1.5")

@@ -107,3 +107,9 @@ def test_symlinked_entry_out_of_the_tree_is_omitted(library, tmp_path):
     except OSError:
         pytest.skip("symlinks unavailable")
     assert "escape.rst" not in names(library.browse(""))
+
+
+def test_locate_says_when_a_file_is_not_a_document(library):
+    """A shell or the dialog can then refuse it where the path was typed,
+    instead of opening a tab that shows an error."""
+    assert library.locate("notes.json") == {"path": "notes.json", "kind": "file"}

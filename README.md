@@ -20,17 +20,49 @@ rstview samples/index.rst
 ```sh
 rstview                      # nothing open; pick a file under the current directory
 rstview samples/index.rst    # open a document
+rstview samples/             # open the file dialog in a folder
 rstview --port 0             # random free port instead of the default 5686
 rstview --root ~/notes       # restrict reachable documents to a directory
 rstview --dev samples/index.rst   # also run Vite, for working on the client
+rstview --daemon             # long-lived server over your home directory
 ```
 
 The port defaults to **5686** so a pinned browser tab survives a restart.
 
+If an rstview is already listening on the port, `rstview PATH` does not start
+another: it asks that one to resolve the path and opens a browser tab on it —
+the document, or the dialog in that folder — then exits. The tab is not
+confined to what was named; it can reach anything the server's root can. `-B`
+prints the URL instead of opening it.
+
+### Running as a daemon
+
+`--daemon` is for leaving one server up: it opens no browser, and its root
+defaults to your home directory rather than wherever it was started. Then
+`rstview PATH` from any shell opens tabs on it. As a systemd user service,
+with [deploy/rstview.service](deploy/rstview.service):
+
+```sh
+ln -s "$PWD/deploy/rstview.service" ~/.config/systemd/user/rstview.service
+systemctl --user daemon-reload
+systemctl --user enable --now rstview
+loginctl enable-linger "$USER"     # start at boot, not just at login
+```
+
+Every request's `Host` header must name this machine, so a web page cannot
+reach a long-running server by rebinding its own domain to `127.0.0.1`.
+
+### The file dialog
+
 **Open…** in the top bar (or `Ctrl/Cmd+O`) browses the filesystem server-side —
 the browser cannot hand over a real path, so the dialog is served rather than
 native. It filters hidden entries and anything that is not a document, switches
-between list and icon views, and accepts a pasted path.
+between list and icon views, and accepts a pasted path. With nothing open, the
+page is blank behind it and it stays open until a document is picked.
+
+The ☆ beside the path bookmarks a folder; bookmarks appear as chips under it.
+They are kept per browser, as absolute paths, so one shows up under any server
+on the port and is greyed out where that server's root cannot reach it.
 
 A link pointing at another local `.rst` or `.md` file loads that document into
 the page instead of navigating away, so scroll, settings and loaded syntax

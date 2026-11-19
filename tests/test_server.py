@@ -359,3 +359,27 @@ def test_a_refused_lookup_is_addressed_to_its_caller(client):
         reply = _answer(ws, {"type": "locate", "path": "/etc/passwd", "id": 4})
         assert reply["type"] == "error" and reply["id"] == 4
         assert "outside the document root" in reply["message"]
+
+
+def test_api_info_identifies_the_server(rst):
+    """What a second `rstview` probes before handing its document over."""
+    app = create_app(str(rst), url="http://localhost:5686/")
+    with TestClient(app) as client:
+        info = client.get("/api/info").json()
+    assert info["name"] == "rstview"
+    assert info["entry"] == "doc.rst"
+    assert info["url"] == "http://localhost:5686/"
+
+
+def test_host_guard_refuses_a_rebound_name(rst):
+    """DNS rebinding: an attacker's name resolving to 127.0.0.1 would
+    otherwise be same-origin with its own reads of /media and /api/doc."""
+    app = create_app(str(rst), allowed_hosts=lambda name: name in {"localhost", "::1"})
+    with TestClient(app, base_url="http://localhost:5686") as client:
+        assert client.get("/api/doc").status_code == 200
+        assert client.get("/api/doc", headers={"host": "[::1]:5686"}).status_code == 200
+        assert client.get("/api/doc", headers={"host": "evil.example:5686"}).status_code == 421
+        assert client.get("/api/doc", headers={"host": "[::1"}).status_code == 421
+        with pytest.raises(Exception):
+            with client.websocket_connect("/ws", headers={"host": "evil.example"}) as ws:
+                ws.receive_json()

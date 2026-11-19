@@ -8,6 +8,8 @@
  *  standalone app, the VS Code host relay in the extension. Nothing below
  *  knows which.
  */
+import { untrack } from 'svelte';
+
 export function createConnection(transport) {
   let ast = $state(null);
   let version = $state(0);
@@ -19,7 +21,9 @@ export function createConnection(transport) {
   let entry = $state(null);
   let ready = $state(false);
 
-  let wanted = null; // Survives a reconnect so we reopen the right document.
+  // Survives a reconnect so we reopen the right document. State, because
+  // `idle` reads it.
+  let wanted = $state(null);
 
   // The file dialog's two lookups are the only request/response pairs in an
   // otherwise push-only protocol, so they carry an id and land here rather
@@ -73,6 +77,9 @@ export function createConnection(transport) {
       documents = message.documents ?? [];
     } else if (message.type === 'error') {
       error = message.message;
+      // The document asked for is not coming. Forget it, so a reconnect
+      // reopens what is on screen and asking again is not a no-op.
+      if (message.path != null && message.path === wanted) wanted = path;
     }
   });
 
@@ -90,6 +97,13 @@ export function createConnection(transport) {
     /** True once the server has said what it holds - distinguishes "still
      *  connecting" from "connected, but no document open". */
     get ready() { return ready; },
+    /** Connected, nothing on screen, and nothing on its way: no entry
+     *  document, no `open` still unanswered. Distinct from the moment between
+     *  `ready` and the first `doc`, when a document is about to arrive. */
+    get idle() {
+      if (!ready || ast) return false;
+      return error != null || (wanted ?? entry) == null;
+    },
     refresh() { transport.send({ type: 'list' }); },
     /** One directory's contents, for the file dialog. */
     browse(path, { hidden = false, all = false } = {}) {
@@ -98,7 +112,9 @@ export function createConnection(transport) {
     /** Resolve a pasted path - absolute or relative - to a library path. */
     locate(path) { return request({ type: 'locate', path }); },
     open(next) {
-      if (!next || next === wanted) return;
+      // Untracked: callers include effects (the deep link on load), and an
+      // error resetting `wanted` must not re-run them into opening it again.
+      if (!next || next === untrack(() => wanted)) return;
       wanted = next;
       error = null;
       transport.send({ type: 'open', path: next });

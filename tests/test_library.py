@@ -125,3 +125,26 @@ def test_assets_are_contained_like_documents(tmp_path):
     for bad in ("../outside.png", "/etc/passwd", "escape.png", "sub", ""):
         with pytest.raises(DocumentError):
             library.resolve_asset(bad)
+
+
+def test_cache_drops_the_least_recently_used_unviewed_documents(tmp_path, monkeypatch):
+    """A daemon over a home directory must not keep every document it was ever
+    asked for; one that is being viewed must survive, since watcher pushes are
+    addressed through it."""
+    from rstview import library as module
+
+    monkeypatch.setattr(module, "CACHE_LIMIT", 2)
+    for name in "abcd":
+        (tmp_path / f"{name}.rst").write_text(f"{name.upper()}\n=\n")
+    library = Library(str(tmp_path))
+
+    viewed = library.get("a.rst")
+    viewed.clients.add("someone")
+    for name in "bcd":
+        library.get(f"{name}.rst")
+    library.get("c.rst")  # touched, so d is now the older of the idle two
+
+    assert sorted(d.relpath for d in library.documents) == ["a.rst", "c.rst", "d.rst"]
+    library.get("b.rst")
+    assert sorted(d.relpath for d in library.documents) == ["a.rst", "b.rst", "c.rst"]
+    assert library.get("a.rst") is viewed

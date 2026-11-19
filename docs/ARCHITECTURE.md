@@ -88,6 +88,9 @@ as the document pane's error, and it is why the file dialog works over any
 transport — including a webview and the fixture-backed demo, neither of which
 can reach an HTTP route.
 
+`locate` answers `kind` `dir`, `doc`, or `file` for something that exists but
+cannot be opened, so the dialog and the shell refuse it where it was typed.
+
 `source` renders supplied buffer text without reading disk, which is how an
 editor previews unsaved changes. Containment applies to it exactly as to `open`
 — it goes through the same `library.get`, which also means the path must exist
@@ -96,6 +99,20 @@ on disk, so a never-saved buffer is not yet renderable.
 Under `--stdio`, stdout carries protocol only. It is claimed at the file
 descriptor level (`dup`/`dup2`), so a stray `print` or a C-level write to fd 1
 from any dependency is diverted to stderr rather than corrupting the stream.
+
+## One server, many invocations
+
+`/api/info` names the server as rstview and reports its root and URL. Before
+starting, the CLI probes its port: if an rstview answers, it resolves the path
+through that server's `/api/locate` and opens `?doc=` or `?dir=` in a browser
+itself — the CLI is in the desktop session, and a daemon under a service
+manager may have no display. Options that shape a server (`--root`, `--dev`,
+`--listen`, `--daemon`) cannot apply to one that already exists, so with one
+running they exit with a message instead.
+
+Rendered documents no client is viewing are cached up to `CACHE_LIMIT`, least
+recently used first out, so a daemon left running does not keep everything it
+ever rendered.
 
 ## Containment
 
@@ -110,6 +127,13 @@ listings rather than listed and then refused.
 The HTTP routes are a parallel read-only surface rather than what the client
 uses: `/api/doc`, `/api/browse` and the rest exist for scripting and debugging,
 while the page itself speaks the message vocabulary over its transport.
+
+Every HTTP request and WebSocket handshake is also checked for its `Host`
+header (`HostGuard`): loopback names on a loopback bind, this machine's own
+names or an IP literal otherwise. The Origin check covers the socket but not a
+plain GET, and without this a DNS-rebinding page is same-origin with its reads
+of `/media` and `/api/doc` — the whole root, which for `--daemon` is a home
+directory left running.
 
 `/media` is the one widening: `resolve_asset` drops the reST suffix
 requirement, since an `.. image::` target is not a document, and keeps every

@@ -20,10 +20,31 @@ export function websocketTransport() {
     socket.onmessage = (event) => onMessage(JSON.parse(event.data));
     socket.onclose = () => {
       onStatus('offline');
-      retry = Math.min(retry + 1, 5);
-      setTimeout(connect, 200 * 2 ** (retry - 1));
+      untilAnswering().then(connect);
     };
     socket.onerror = () => socket.close();
+  }
+
+  /** Wait out a server that is down over HTTP, not by redialling the socket.
+   *
+   *  Firefox follows RFC 6455 §7.2.3: after a failed WebSocket connection it
+   *  delays the next one to that host:port, exponentially up to a minute, and
+   *  the penalty is shared by every tab. A tab redialling a stopped server
+   *  every few seconds ran it up so far that a fresh tab opened once the
+   *  daemon was back sat on "Connecting…" for seconds. A fetch is not
+   *  delayed, so the socket is only tried again once something answers.
+   */
+  async function untilAnswering() {
+    for (;;) {
+      retry = Math.min(retry + 1, 5);
+      await new Promise((resolve) => setTimeout(resolve, 200 * 2 ** (retry - 1)));
+      try {
+        const response = await fetch('/api/info', { cache: 'no-store' });
+        if (response.ok) return;
+      } catch {
+        // Still down; keep waiting.
+      }
+    }
   }
 
   connect();
